@@ -3415,49 +3415,52 @@ ${historyContext}
             <div className="flex-1 overflow-y-auto px-4 py-6 pb-24 w-full max-w-lg mx-auto space-y-8">
               
               {/* Google Integration */}
-              <section>
-                <h2 className="text-[13px] uppercase tracking-wide text-zinc-500 font-medium px-4 mb-2">Google Integration</h2>
-                <div className="bg-[#1C1C1E] rounded-[20px] overflow-hidden">
-                  <div className="p-4 flex flex-col gap-3">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <div className={`w-2 h-2 rounded-full ${googleToken ? 'bg-emerald-500 shadow-[0_0_6px_rgba(16,185,129,0.5)]' : 'bg-amber-500 shadow-[0_0_6px_rgba(245,158,11,0.5)]'}`} />
-                        <span className={`text-[13px] font-semibold uppercase tracking-wider ${googleToken ? 'text-emerald-500' : 'text-amber-500'}`}>
+              <section className="space-y-3">
+                <h2 className="text-[11px] font-bold tracking-[0.2em] uppercase text-zinc-400/90 mb-3 px-1">Google Integration</h2>
+                <div className="bg-white/[0.02] backdrop-blur-md border border-white/[0.04] rounded-3xl shadow-[0_8px_32px_rgba(0,0,0,0.4)] overflow-hidden transition-all duration-300 hover:border-white/[0.07] hover:bg-white/[0.03]">
+                  <div className="p-5 flex flex-col gap-4">
+                    <div className="flex items-center justify-between gap-4">
+                      <div className="flex items-center gap-2 bg-black/35 px-3 py-1.5 rounded-full border border-white/[0.02]">
+                        <div className={`w-1.5 h-1.5 rounded-full ${googleToken ? 'bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.6)] animate-pulse' : 'bg-amber-500 shadow-[0_0_8px_rgba(245,158,11,0.5)]'}`} />
+                        <span className={`text-[11px] font-bold uppercase tracking-wider ${googleToken ? 'text-emerald-400' : 'text-amber-500'}`}>
                           {googleToken ? 'Authenticated' : 'Connection Required'}
                         </span>
                       </div>
                       <button
                         onClick={onLogin}
-                        className="px-3 py-1.5 bg-white/10 active:bg-white/20 rounded-full text-[13px] font-semibold text-white transition-colors"
+                        className="px-4 py-2 bg-gradient-to-r from-[#d0a78b] to-[#b88c6f] hover:brightness-110 active:scale-95 rounded-xl text-xs font-bold text-black shadow-[0_4px_16px_rgba(208,167,139,0.2)] hover:shadow-[0_4px_20px_rgba(208,167,139,0.35)] transition-all duration-200 cursor-pointer"
                       >
                         {googleToken ? 'Sync' : 'Connect'}
                       </button>
                     </div>
-                    {!googleToken && (
-                      <p className="text-[13px] text-zinc-500">
-                        Connect to enable Gmail, Calendar, Drive, Tasks, and YouTube capabilities.
-                      </p>
-                    )}
+                    <p className="text-[11px] text-zinc-400 leading-relaxed font-medium">
+                      Sync to enable Gmail, Calendar, Drive, Tasks, and YouTube capabilities on Beatrice's voice pipeline.
+                    </p>
                   </div>
                 </div>
               </section>
 
               {/* Room Tone */}
-              <section>
-                <h2 className="text-[13px] uppercase tracking-wide text-zinc-500 font-medium px-4 mb-2">Room Tone</h2>
-                <div className="bg-[#1C1C1E] rounded-[20px] overflow-hidden">
-                  <div className="p-4 border-b border-white/5 flex items-center justify-between">
-                    <span className="text-[15px] text-white">Enable Ambient Sound</span>
+              <section className="space-y-3">
+                <h2 className="text-[11px] font-bold tracking-[0.2em] uppercase text-zinc-400/90 mb-3 px-1">Room Tone</h2>
+                <div className="bg-white/[0.02] backdrop-blur-md border border-white/[0.04] rounded-3xl shadow-[0_8px_32px_rgba(0,0,0,0.4)] overflow-hidden transition-all duration-300 hover:border-white/[0.07] hover:bg-white/[0.03]">
+                  <div className="p-5 border-b border-white/[0.03] flex items-center justify-between">
+                    <div className="flex flex-col gap-0.5 pr-4">
+                      <span className="text-[14px] text-zinc-100 font-bold tracking-wide">Enable Ambient Sound</span>
+                      <span className="text-[11px] text-zinc-400 font-medium leading-relaxed">Add a calming background office/cafe bed during calls</span>
+                    </div>
                     <button
                       onClick={() => setAmbientEnabled(v => !v)}
                       aria-pressed={ambientEnabled}
-                      className={`w-11 h-6 rounded-full transition-all flex items-center ${ambientEnabled ? 'bg-emerald-500' : 'bg-zinc-700'}`}
+                      aria-label="Toggle Ambient Sound"
+                      title="Toggle Ambient Sound"
+                      className={`w-10 h-6 rounded-full transition-all duration-300 flex items-center shrink-0 cursor-pointer ${ambientEnabled ? 'bg-[#d0a78b] shadow-[0_0_10px_rgba(208,167,139,0.3)]' : 'bg-zinc-800'}`}
                     >
-                      <span className={`block w-5 h-5 rounded-full bg-white transition-all shadow-sm ${ambientEnabled ? 'ml-5' : 'ml-[2px]'}`} />
+                      <span className={`block w-4.5 h-4.5 rounded-full bg-white transition-all duration-300 shadow-md ${ambientEnabled ? 'ml-[18px]' : 'ml-[3px]'}`} />
                     </button>
                   </div>
-                  <div className="p-4 flex items-center gap-4">
-                    <label htmlFor="ambient-volume-slider" className="text-[13px] text-zinc-500 shrink-0 w-8">Vol</label>
+                  <div className="p-5 flex items-center gap-4 bg-white/[0.005]">
+                    <label htmlFor="ambient-volume-slider" className="text-[11px] uppercase tracking-wider text-zinc-400 font-semibold shrink-0 w-8">Vol</label>
                     <input
                       id="ambient-volume-slider"
                       type="range"
@@ -3467,28 +3470,26 @@ ${historyContext}
                       value={ambientVolume}
                       onChange={(e) => setAmbientVolume(parseInt(e.target.value, 10))}
                       disabled={!ambientEnabled}
-                      className="w-full accent-emerald-500 h-1.5 bg-white/5 rounded-lg appearance-none cursor-pointer disabled:opacity-40"
+                      className="w-full h-1.5 bg-black/40 border border-white/[0.05] accent-[#d0a78b] rounded-lg appearance-none cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed transition-all duration-300"
                       aria-label="Ambient Volume"
                       title="Ambient Volume"
                     />
-                    <span className="text-[13px] text-zinc-500 shrink-0 w-6 text-right">{ambientVolume}</span>
+                    <span className="text-xs font-mono font-bold text-zinc-300 shrink-0 w-6 text-right">{ambientVolume}</span>
                   </div>
                 </div>
               </section>
 
-
-
               <WhatsAppSettings userId={user.uid} />
 
               {/* Save */}
-              <section className="space-y-3">
+              <section className="pt-4">
                 <button
                   onClick={saveSettings}
                   disabled={isSaving}
-                  className="w-full p-4 bg-amber-500 rounded-[20px] text-center active:bg-amber-400 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+                  className="w-full p-4 bg-gradient-to-r from-[#d0a78b] to-[#b88c6f] hover:brightness-110 active:scale-[0.98] disabled:opacity-50 rounded-2xl text-center transition-all duration-200 cursor-pointer shadow-[0_6px_24px_rgba(208,167,139,0.25)] hover:shadow-[0_8px_30px_rgba(208,167,139,0.4)] flex items-center justify-center gap-2"
                 >
                   {isSaving ? <Loader2 className="w-5 h-5 animate-spin text-black" /> : <Save className="w-5 h-5 text-black" />}
-                  <span className="text-[15px] font-bold text-black">Save Settings</span>
+                  <span className="text-[15px] font-extrabold tracking-wide text-black">Save Settings</span>
                 </button>
               </section>
 

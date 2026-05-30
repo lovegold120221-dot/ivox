@@ -105,15 +105,15 @@ export function WhatsAppSettings({ userId }: WhatsAppSettingsProps) {
   };
 
   return (
-    <section>
-      <h2 className="text-[13px] uppercase tracking-wide text-zinc-500 font-medium px-4 mb-2">WhatsApp Integration</h2>
-      <div className="bg-[#1C1C1E] rounded-[20px] overflow-hidden">
-        <div className="p-4 flex flex-col gap-3">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <div className={`w-2 h-2 rounded-full ${waStatus === 'paired' ? 'bg-emerald-500 shadow-[0_0_6px_rgba(16,185,129,0.5)]' : waStatus === 'qr_ready' || waStatus === 'init' ? 'bg-amber-500 shadow-[0_0_6px_rgba(245,158,11,0.5)]' : 'bg-zinc-600'}`} />
-              <span className={`text-[13px] font-semibold uppercase tracking-wider ${waStatus === 'paired' ? 'text-emerald-500' : waStatus === 'qr_ready' || waStatus === 'init' ? 'text-amber-500' : 'text-zinc-500'}`}>
-                {waStatus === 'paired' ? `Connected${waPhone ? ` (${waPhone})` : ''}` : waStatus === 'qr_ready' ? (waPairingCode ? 'Enter OTP on Phone' : 'Scan QR code') : waStatus === 'init' ? 'Connecting...' : 'Not connected'}
+    <section className="space-y-3">
+      <h2 className="text-[11px] font-bold tracking-[0.2em] uppercase text-zinc-400/90 mb-3 px-1">WhatsApp Integration</h2>
+      <div className="bg-white/[0.02] backdrop-blur-md border border-white/[0.04] rounded-3xl shadow-[0_8px_32px_rgba(0,0,0,0.4)] overflow-hidden transition-all duration-300 hover:border-white/[0.07] hover:bg-white/[0.03]">
+        <div className="p-5 flex flex-col gap-4">
+          <div className="flex items-center justify-between gap-4">
+            <div className="flex items-center gap-2 bg-black/35 px-3 py-1.5 rounded-full border border-white/[0.02]">
+              <div className={`w-1.5 h-1.5 rounded-full ${waStatus === 'paired' ? 'bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.6)] animate-pulse' : waStatus === 'qr_ready' || waStatus === 'init' ? 'bg-[#d0a78b] shadow-[0_0_8px_rgba(208,167,139,0.6)] animate-pulse' : 'bg-zinc-500'}`} />
+              <span className={`text-[11px] font-bold uppercase tracking-wider ${waStatus === 'paired' ? 'text-emerald-400' : waStatus === 'qr_ready' || waStatus === 'init' ? 'text-[#d0a78b]' : 'text-zinc-400'}`}>
+                {waStatus === 'paired' ? `Connected${waPhone ? ` (${waPhone})` : ''}` : waStatus === 'qr_ready' ? (waPairingCode ? 'OTP Verification' : 'Scan QR Code') : waStatus === 'init' ? 'Initializing...' : 'Disconnected'}
               </span>
             </div>
             {waStatus === 'paired' ? (
@@ -126,7 +126,7 @@ export function WhatsAppSettings({ userId }: WhatsAppSettingsProps) {
                   setWaPairingCode(null);
                   await supabase.from('user_settings').upsert({ user_id: userId, whatsapp_paired: false, whatsapp_phone: null, whatsapp_permissions: waPermissions, updated_at: new Date().toISOString() });
                 }}
-                className="px-3 py-1.5 bg-red-500/10 active:bg-red-500/20 rounded-full text-[13px] font-semibold text-red-500 transition-colors"
+                className="px-4 py-2 bg-red-500/10 hover:bg-red-500/20 active:scale-95 rounded-xl text-xs font-semibold text-red-400 border border-red-500/20 transition-all duration-200 cursor-pointer"
               >
                 Disconnect
               </button>
@@ -150,22 +150,22 @@ export function WhatsAppSettings({ userId }: WhatsAppSettingsProps) {
                   }
                 }}
                 disabled={waPairing}
-                className="px-3 py-1.5 bg-white/10 active:bg-white/20 rounded-full text-[13px] font-semibold text-white transition-colors disabled:opacity-50"
+                className="px-4 py-2 bg-gradient-to-r from-[#d0a78b] to-[#b88c6f] hover:brightness-110 active:scale-95 disabled:opacity-40 rounded-xl text-xs font-bold text-black shadow-[0_4px_16px_rgba(208,167,139,0.2)] hover:shadow-[0_4px_20px_rgba(208,167,139,0.35)] transition-all duration-200 cursor-pointer"
               >
-                {waPairing ? (pairingMethod === 'phone' ? 'Sending OTP...' : 'Generating QR...') : (pairingMethod === 'phone' ? 'Send OTP' : 'Generate QR')}
+                {waPairing ? (pairingMethod === 'phone' ? 'Sending OTP...' : 'Generating...') : (pairingMethod === 'phone' ? 'Send OTP' : 'Generate QR')}
               </button>
             )}
           </div>
 
           {waStatus !== 'paired' && (
-            <div className="flex flex-col gap-3 pt-3 border-t border-white/5">
-              <label className="text-[12px] uppercase tracking-wider text-zinc-500 font-semibold mb-1">Pairing Option</label>
-              <div className="grid grid-cols-2 gap-2 bg-black/40 p-1 rounded-xl">
+            <div className="flex flex-col gap-3 pt-3 border-t border-white/[0.04]">
+              <label className="text-[10px] uppercase tracking-[0.15em] text-zinc-500 font-bold px-1">Pairing Option</label>
+              <div className="grid grid-cols-2 gap-1.5 bg-black/40 p-1 rounded-2xl border border-white/[0.02]">
                 <button
                   type="button"
                   onClick={() => setPairingMethod('qr')}
                   disabled={waPairing}
-                  className={`py-1.5 rounded-lg text-xs font-semibold transition-all ${pairingMethod === 'qr' ? 'bg-[#2C2C2E] text-white shadow-sm' : 'text-zinc-400 hover:text-zinc-200'} disabled:opacity-50`}
+                  className={`py-2 rounded-xl text-xs font-bold transition-all duration-300 cursor-pointer ${pairingMethod === 'qr' ? 'bg-white/[0.08] text-[#d0a78b] border border-white/[0.04] shadow-sm' : 'text-zinc-400 hover:text-zinc-200 border border-transparent'} disabled:opacity-50`}
                 >
                   Scan QR Code
                 </button>
@@ -173,15 +173,15 @@ export function WhatsAppSettings({ userId }: WhatsAppSettingsProps) {
                   type="button"
                   onClick={() => setPairingMethod('phone')}
                   disabled={waPairing}
-                  className={`py-1.5 rounded-lg text-xs font-semibold transition-all ${pairingMethod === 'phone' ? 'bg-[#2C2C2E] text-white shadow-sm' : 'text-zinc-400 hover:text-zinc-200'} disabled:opacity-50`}
+                  className={`py-2 rounded-xl text-xs font-bold transition-all duration-300 cursor-pointer ${pairingMethod === 'phone' ? 'bg-white/[0.08] text-[#d0a78b] border border-white/[0.04] shadow-sm' : 'text-zinc-400 hover:text-zinc-200 border border-transparent'} disabled:opacity-50`}
                 >
                   Use Phone Number
                 </button>
               </div>
               
               {pairingMethod === 'phone' && (
-                <div className="flex flex-col gap-1.5 mt-1 bg-black/20 p-3 rounded-xl border border-white/5">
-                  <label htmlFor="wa-phone-input" className="text-[12px] text-zinc-400 font-medium">WhatsApp Phone Number</label>
+                <div className="flex flex-col gap-2 mt-1 bg-white/[0.01] p-4 rounded-2xl border border-white/[0.03]">
+                  <label htmlFor="wa-phone-input" className="text-[11px] uppercase tracking-wider text-zinc-400 font-semibold">WhatsApp Phone Number</label>
                   <input
                     id="wa-phone-input"
                     type="text"
@@ -189,9 +189,9 @@ export function WhatsAppSettings({ userId }: WhatsAppSettingsProps) {
                     disabled={waPairing}
                     onChange={(e) => setPhoneInput(e.target.value)}
                     placeholder="e.g. +31 6 12345678"
-                    className="bg-[#2C2C2E] border border-white/5 rounded-lg px-3 py-2 text-[14px] text-white placeholder-zinc-500 focus:outline-none focus:border-amber-500/50 disabled:opacity-50"
+                    className="bg-black/35 border border-white/[0.05] rounded-xl px-3.5 py-2.5 text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-[#d0a78b]/50 focus:ring-1 focus:ring-[#d0a78b]/20 transition-all duration-300 disabled:opacity-50"
                   />
-                  <p className="text-[11px] text-zinc-500 leading-normal">
+                  <p className="text-[11px] text-zinc-500 leading-relaxed font-medium">
                     Enter the phone number registered on your WhatsApp app, including your country code (e.g. 31612345678).
                   </p>
                 </div>
@@ -200,15 +200,15 @@ export function WhatsAppSettings({ userId }: WhatsAppSettingsProps) {
           )}
 
           {waPairing && waStatus === 'init' && (
-            <div className="flex flex-col items-center pt-4 border-t border-white/5">
+            <div className="flex flex-col items-center pt-4 border-t border-white/[0.04]">
               <div className="flex items-center gap-2 mb-2">
-                <svg className="animate-spin h-5 w-5 text-amber-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <svg className="animate-spin h-4 w-4 text-[#d0a78b]" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                   <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                   <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                 </svg>
-                <span className="text-[14px] text-zinc-400 font-medium">Connecting and generating pair...</span>
+                <span className="text-[13px] text-zinc-400 font-semibold">Generating WhatsApp connection...</span>
               </div>
-              <p className="text-[12px] text-zinc-500 text-center max-w-xs mb-3">
+              <p className="text-[11px] text-zinc-500 text-center max-w-xs mb-3 font-medium">
                 Starting up WhatsApp session on VPS backend. This might take a few seconds...
               </p>
               <button
@@ -220,7 +220,7 @@ export function WhatsAppSettings({ userId }: WhatsAppSettingsProps) {
                   setWaQrCode(null);
                   if (waPollRef.current) clearInterval(waPollRef.current);
                 }}
-                className="px-4 py-1.5 bg-red-500/10 active:bg-red-500/20 rounded-full text-[13px] font-semibold text-red-500 transition-colors"
+                className="px-4 py-2 bg-red-500/10 hover:bg-red-500/20 active:scale-95 rounded-xl text-xs font-semibold text-red-400 border border-red-500/20 transition-all duration-200 cursor-pointer"
               >
                 Cancel Pairing
               </button>
@@ -228,9 +228,9 @@ export function WhatsAppSettings({ userId }: WhatsAppSettingsProps) {
           )}
 
           {waStatus === 'error' && (
-            <div className="flex flex-col items-center pt-4 border-t border-white/5">
-              <span className="text-[13px] text-red-500 font-semibold mb-1">Pairing Failed</span>
-              <p className="text-[12px] text-zinc-500 text-center max-w-xs mb-3">
+            <div className="flex flex-col items-center pt-4 border-t border-white/[0.04]">
+              <span className="text-[13px] text-red-400 font-bold mb-1">Pairing Failed</span>
+              <p className="text-[11px] text-zinc-500 text-center max-w-xs mb-3 font-medium leading-relaxed">
                 An error occurred during pairing. Please verify your phone number and network connection, then try again.
               </p>
               <button
@@ -242,7 +242,7 @@ export function WhatsAppSettings({ userId }: WhatsAppSettingsProps) {
                   setWaQrCode(null);
                   if (waPollRef.current) clearInterval(waPollRef.current);
                 }}
-                className="px-4 py-1.5 bg-white/10 active:bg-white/20 rounded-full text-[13px] font-semibold text-white transition-colors"
+                className="px-4 py-2 bg-white/5 hover:bg-white/10 active:scale-95 rounded-xl text-xs font-semibold text-white border border-white/5 transition-all duration-200 cursor-pointer"
               >
                 Reset & Try Again
               </button>
@@ -250,10 +250,10 @@ export function WhatsAppSettings({ userId }: WhatsAppSettingsProps) {
           )}
 
           {pairingMethod === 'qr' && waQrCode && waStatus === 'qr_ready' && (
-            <div className="flex flex-col items-center pt-4 border-t border-white/5">
-              <img src={waQrCode} alt="WhatsApp QR" className="w-48 h-48 rounded-[16px] bg-white p-3 mb-2" />
-              <p className="text-[13px] text-zinc-500 text-center font-medium">Open WhatsApp &gt; Linked Devices &gt; Link a Device</p>
-              <p className="text-[12px] text-zinc-500 text-center max-w-xs mb-3">Scan this QR code from your phone's WhatsApp application to pair.</p>
+            <div className="flex flex-col items-center pt-4 border-t border-white/[0.04]">
+              <img src={waQrCode} alt="WhatsApp QR" className="w-44 h-44 rounded-2xl bg-white p-3 mb-3 shadow-[0_4px_24px_rgba(255,255,255,0.05)] border border-white/10" />
+              <p className="text-[13px] text-zinc-300 text-center font-bold mb-1">Open WhatsApp &gt; Linked Devices &gt; Link a Device</p>
+              <p className="text-[11px] text-zinc-500 text-center max-w-xs mb-4 leading-relaxed font-medium">Scan this QR code from your phone's WhatsApp application to pair.</p>
               <button
                 onClick={async () => {
                   await disconnectWhatsApp(userId);
@@ -262,7 +262,7 @@ export function WhatsAppSettings({ userId }: WhatsAppSettingsProps) {
                   setWaPairing(false);
                   if (waPollRef.current) clearInterval(waPollRef.current);
                 }}
-                className="px-4 py-1.5 bg-red-500/10 active:bg-red-500/20 rounded-full text-[13px] font-semibold text-red-500 transition-colors"
+                className="px-4 py-2 bg-red-500/10 hover:bg-red-500/20 active:scale-95 rounded-xl text-xs font-semibold text-red-400 border border-red-500/20 transition-all duration-200 cursor-pointer"
               >
                 Cancel Pairing
               </button>
@@ -270,15 +270,15 @@ export function WhatsAppSettings({ userId }: WhatsAppSettingsProps) {
           )}
 
           {pairingMethod === 'phone' && !waPairingCode && waStatus === 'qr_ready' && (
-            <div className="flex flex-col items-center pt-4 border-t border-white/5">
+            <div className="flex flex-col items-center pt-4 border-t border-white/[0.04]">
               <div className="flex items-center gap-2 mb-2">
-                <svg className="animate-spin h-5 w-5 text-amber-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <svg className="animate-spin h-4 w-4 text-[#d0a78b]" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                   <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                   <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                 </svg>
-                <span className="text-[14px] text-zinc-400 font-medium">Generating OTP code...</span>
+                <span className="text-[13px] text-zinc-400 font-semibold">Generating OTP code...</span>
               </div>
-              <p className="text-[12px] text-zinc-500 text-center max-w-xs mb-3">
+              <p className="text-[11px] text-zinc-500 text-center max-w-xs mb-3 font-medium">
                 Please wait while we request the OTP verification code from WhatsApp...
               </p>
               <button
@@ -289,7 +289,7 @@ export function WhatsAppSettings({ userId }: WhatsAppSettingsProps) {
                   setWaPairing(false);
                   if (waPollRef.current) clearInterval(waPollRef.current);
                 }}
-                className="px-4 py-1.5 bg-red-500/10 active:bg-red-500/20 rounded-full text-[13px] font-semibold text-red-500 transition-colors"
+                className="px-4 py-2 bg-red-500/10 hover:bg-red-500/20 active:scale-95 rounded-xl text-xs font-semibold text-red-400 border border-red-500/20 transition-all duration-200 cursor-pointer"
               >
                 Cancel Pairing
               </button>
@@ -297,19 +297,19 @@ export function WhatsAppSettings({ userId }: WhatsAppSettingsProps) {
           )}
 
           {pairingMethod === 'phone' && waPairingCode && waStatus === 'qr_ready' && (
-            <div className="flex flex-col items-center pt-4 border-t border-white/5">
-              <div className="bg-zinc-900 border border-white/10 rounded-[16px] px-6 py-4 flex items-center justify-center gap-1.5 mb-2 select-text">
+            <div className="flex flex-col items-center pt-4 border-t border-white/[0.04]">
+              <div className="bg-black/45 border border-white/[0.06] rounded-2xl px-6 py-4 flex items-center justify-center gap-2 mb-3 select-text shadow-inner">
                 {waPairingCode.split('').map((char, i) => (
-                  <span key={i} className={`text-2xl font-bold font-mono tracking-widest ${char === '-' ? 'text-zinc-500 mx-1' : 'text-amber-500'}`}>
+                  <span key={i} className={`text-2xl font-bold font-mono tracking-wider ${char === '-' ? 'text-zinc-600 mx-1' : 'text-[#d0a78b] drop-shadow-[0_0_8px_rgba(208,167,139,0.3)]'}`}>
                     {char}
                   </span>
                 ))}
               </div>
-              <p className="text-[13px] text-zinc-400 text-center max-w-xs mb-1 font-medium">
+              <p className="text-[12px] text-zinc-300 text-center max-w-xs mb-1 font-bold">
                 Open WhatsApp &gt; Linked Devices &gt; Link a Device &gt; Link with phone number instead
               </p>
-              <p className="text-[12px] text-zinc-500 text-center max-w-xs mb-3">
-                Enter the 8-character OTP code shown above on your phone.
+              <p className="text-[11px] text-zinc-500 text-center max-w-xs mb-4 leading-relaxed font-medium">
+                Enter the 8-character OTP code shown above on your phone's WhatsApp.
               </p>
               <button
                 onClick={async () => {
@@ -319,7 +319,7 @@ export function WhatsAppSettings({ userId }: WhatsAppSettingsProps) {
                   setWaPairing(false);
                   if (waPollRef.current) clearInterval(waPollRef.current);
                 }}
-                className="px-4 py-1.5 bg-red-500/10 active:bg-red-500/20 rounded-full text-[13px] font-semibold text-red-500 transition-colors"
+                className="px-4 py-2 bg-red-500/10 hover:bg-red-500/20 active:scale-95 rounded-xl text-xs font-semibold text-red-400 border border-red-500/20 transition-all duration-200 cursor-pointer"
                 aria-label="Cancel pairing"
                 title="Cancel pairing"
               >
@@ -330,27 +330,30 @@ export function WhatsAppSettings({ userId }: WhatsAppSettingsProps) {
         </div>
 
         {waStatus === 'paired' && (
-          <div className="border-t border-white/5">
+          <div className="border-t border-white/[0.04] bg-white/[0.005]">
             {[
-              { key: 'send_messages', label: 'Send Messages' },
-              { key: 'read_chats', label: 'Read Chats' },
-              { key: 'access_contacts', label: 'Access Contacts' },
-              { key: 'manage_contacts', label: 'Manage Contacts' },
-              { key: 'access_groups', label: 'Access Groups' },
-              { key: 'send_group_messages', label: 'Send Group Messages' },
-              { key: 'read_group_chats', label: 'Read Group Chats' },
-              { key: 'view_message_history', label: 'View Message History' },
+              { key: 'send_messages', label: 'Send Messages', desc: 'Allow Beatrice to send texts on your behalf' },
+              { key: 'read_chats', label: 'Read Chats', desc: 'Scan and digest incoming WhatsApp messages' },
+              { key: 'access_contacts', label: 'Access Contacts', desc: 'Search and link contact records' },
+              { key: 'manage_contacts', label: 'Manage Contacts', desc: 'Register or update contacts' },
+              { key: 'access_groups', label: 'Access Groups', desc: 'Browse joined groups' },
+              { key: 'send_group_messages', label: 'Send Group Messages', desc: 'Post announcements or chat replies to groups' },
+              { key: 'read_group_chats', label: 'Read Group Chats', desc: 'Follow and analyze group discussions' },
+              { key: 'view_message_history', label: 'View Message History', desc: 'Read past conversation logs' },
             ].map((p, i, arr) => (
-              <div key={p.key} className={`p-3 flex items-center justify-between ${i !== arr.length - 1 ? 'border-b border-white/5' : ''}`}>
-                <span className="text-[15px] text-white">{p.label}</span>
+              <div key={p.key} className={`px-5 py-4 flex items-center justify-between transition-colors duration-300 hover:bg-white/[0.01] ${i !== arr.length - 1 ? 'border-b border-white/[0.03]' : ''}`}>
+                <div className="flex flex-col gap-0.5 pr-4">
+                  <span className="text-[14px] text-zinc-100 font-bold tracking-wide">{p.label}</span>
+                  <span className="text-[11px] text-zinc-400 font-medium leading-relaxed">{p.desc}</span>
+                </div>
                 <button
                   onClick={() => toggleWaPermission(p.key)}
                   aria-pressed={waPermissions[p.key]}
                   aria-label={`Toggle ${p.label} permission`}
                   title={`Toggle ${p.label} permission`}
-                  className={`w-11 h-6 rounded-full transition-all flex items-center ${waPermissions[p.key] ? 'bg-emerald-500' : 'bg-zinc-700'}`}
+                  className={`w-10 h-6 rounded-full transition-all duration-300 flex items-center shrink-0 cursor-pointer ${waPermissions[p.key] ? 'bg-[#d0a78b] shadow-[0_0_10px_rgba(208,167,139,0.3)]' : 'bg-zinc-800'}`}
                 >
-                  <span className={`block w-5 h-5 rounded-full bg-white transition-all shadow-sm ${waPermissions[p.key] ? 'ml-5' : 'ml-[2px]'}`} />
+                  <span className={`block w-4.5 h-4.5 rounded-full bg-white transition-all duration-300 shadow-md ${waPermissions[p.key] ? 'ml-[18px]' : 'ml-[3px]'}`} />
                 </button>
               </div>
             ))}
