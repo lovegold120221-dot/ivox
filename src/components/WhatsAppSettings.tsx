@@ -113,7 +113,7 @@ export function WhatsAppSettings({ userId }: WhatsAppSettingsProps) {
             <div className="flex items-center gap-2">
               <div className={`w-2 h-2 rounded-full ${waStatus === 'paired' ? 'bg-emerald-500 shadow-[0_0_6px_rgba(16,185,129,0.5)]' : waStatus === 'qr_ready' || waStatus === 'init' ? 'bg-amber-500 shadow-[0_0_6px_rgba(245,158,11,0.5)]' : 'bg-zinc-600'}`} />
               <span className={`text-[13px] font-semibold uppercase tracking-wider ${waStatus === 'paired' ? 'text-emerald-500' : waStatus === 'qr_ready' || waStatus === 'init' ? 'text-amber-500' : 'text-zinc-500'}`}>
-                {waStatus === 'paired' ? `Connected${waPhone ? ` (${waPhone})` : ''}` : waStatus === 'qr_ready' ? (waPairingCode ? 'Enter Pairing Code' : 'Scan QR code') : waStatus === 'init' ? 'Connecting...' : 'Not connected'}
+                {waStatus === 'paired' ? `Connected${waPhone ? ` (${waPhone})` : ''}` : waStatus === 'qr_ready' ? (waPairingCode ? 'Enter OTP on Phone' : 'Scan QR code') : waStatus === 'init' ? 'Connecting...' : 'Not connected'}
               </span>
             </div>
             {waStatus === 'paired' ? (
@@ -152,7 +152,7 @@ export function WhatsAppSettings({ userId }: WhatsAppSettingsProps) {
                 disabled={waPairing}
                 className="px-3 py-1.5 bg-white/10 active:bg-white/20 rounded-full text-[13px] font-semibold text-white transition-colors disabled:opacity-50"
               >
-                {waPairing ? 'Pairing...' : 'Pair'}
+                {waPairing ? (pairingMethod === 'phone' ? 'Sending OTP...' : 'Generating QR...') : (pairingMethod === 'phone' ? 'Send OTP' : 'Generate QR')}
               </button>
             )}
           </div>
@@ -276,10 +276,10 @@ export function WhatsAppSettings({ userId }: WhatsAppSettingsProps) {
                   <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                   <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                 </svg>
-                <span className="text-[14px] text-zinc-400 font-medium">Generating pairing code...</span>
+                <span className="text-[14px] text-zinc-400 font-medium">Generating OTP code...</span>
               </div>
               <p className="text-[12px] text-zinc-500 text-center max-w-xs mb-3">
-                Please wait while we request the pairing code from WhatsApp...
+                Please wait while we request the OTP verification code from WhatsApp...
               </p>
               <button
                 onClick={async () => {
@@ -309,7 +309,7 @@ export function WhatsAppSettings({ userId }: WhatsAppSettingsProps) {
                 Open WhatsApp &gt; Linked Devices &gt; Link a Device &gt; Link with phone number instead
               </p>
               <p className="text-[12px] text-zinc-500 text-center max-w-xs mb-3">
-                Enter the 8-character code shown above on your phone.
+                Enter the 8-character OTP code shown above on your phone.
               </p>
               <button
                 onClick={async () => {
