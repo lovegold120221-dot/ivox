@@ -861,7 +861,7 @@ export default function App() {
 
   if (!user) {
     return (
-      <div className="min-h-screen bg-[#050505] text-white flex flex-col items-center justify-center p-4 relative overflow-hidden">
+      <main className="min-h-screen bg-[#050505] text-white flex flex-col items-center justify-center p-4 relative overflow-hidden">
         {/* Glow Spheres for halo effect */}
         <div className="absolute inset-0 overflow-hidden pointer-events-none">
           <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[320px] sm:w-[500px] h-[320px] sm:h-[500px] bg-amber-500/10 rounded-full blur-[80px] sm:blur-[120px] animate-pulse" />
@@ -1110,7 +1110,7 @@ export default function App() {
             System Secure
           </div>
         </div>
-      </div>
+      </main>
     );
   }
 
