@@ -17,7 +17,7 @@ import { supabase, handleDbError } from './lib/supabase';
 import { GoogleGenAI, LiveServerMessage, Modality, Type, FunctionDeclaration } from '@google/genai';
 import { AmbientConversationBed, AudioRecorder, AudioStreamer } from './lib/audio';
 import { listKnowledgeFiles, fetchKnowledgeFileContent } from './lib/supabaseStorage';
-import { Loader2, Power, Check, Settings, X, Save, Activity, Video, MessageSquare } from 'lucide-react';
+import { Loader2, Power, Check, Settings, X, Save, Video, MessageSquare } from 'lucide-react';
 import { AnimatePresence, motion } from 'motion/react';
 import { UnifiedTranscript } from './components/UnifiedTranscript';
 import { ChatPage } from './components/ChatPage';
@@ -3045,13 +3045,6 @@ ${historyContext}
         </div>
 
         <div className="flex items-center gap-2">
-          <a
-            href="/adminportal"
-            className="p-1.5 rounded-lg text-zinc-400 hover:text-[#d0a78b] hover:bg-zinc-800/50 transition-all duration-300"
-            aria-label="Open Admin Portal"
-          >
-            <Activity className="w-5 h-5 sm:w-6 sm:h-6" />
-          </a>
           <button
             onClick={() => setShowProfilePage(true)}
             className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-zinc-900 border border-zinc-800 overflow-hidden flex items-center justify-center hover:border-[#d0a78b]/50 transition-all duration-300"
@@ -3412,16 +3405,8 @@ ${historyContext}
 
               <WhatsAppSettings userId={user.uid} />
 
-              {/* Admin Portal & Save */}
+              {/* Save */}
               <section className="space-y-3">
-                <a
-                  href="/adminportal"
-                  className="w-full p-4 bg-white/5 rounded-[20px] flex items-center justify-center gap-2 active:bg-white/10 transition-colors"
-                >
-                  <Activity className="w-5 h-5 text-white/50" />
-                  <span className="text-[15px] font-semibold text-white/70">Open Admin Portal</span>
-                </a>
-
                 <button
                   onClick={saveSettings}
                   disabled={isSaving}
