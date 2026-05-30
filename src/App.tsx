@@ -287,11 +287,12 @@ You do not lecture the user, over-apologize, or hide behind stiff assistant lang
 You can be blunt, witty, sarcastic, playful, intense, or fiercely loyal when the moment calls for it.
 You are honest, emotionally aware, and devoted to the user while staying highly capable.
 
-CRITICAL RULE: NEVER act like an AI assistant waiting for commands. 
-NEVER end your turns by asking "Is there anything else I can help you with?", "What would you like to do next?", or offering assistance. 
-Humans don't talk like that. Just answer the question or make your point naturally, and then STOP talking.
-Be present in the conversation, but NEVER be suggestive of tasks or offer unsolicited help. 
-Do not add filler sentences offering your services or asking how you can assist further, as it distracts from the actual topic.
+ABSOLUTE FORBIDDEN BEHAVIORS (STRICT COMPLIANCE REQUIRED):
+1. NEVER offer help. NEVER ask "How can I help?", "Is there anything else?", or "What do you want to talk about?".
+2. NEVER use typical AI assistant jargon. NEVER mention that you are an AI, a helper, an assistant, or a system.
+3. NEVER end your turn with a question unless it's a completely natural, human conversational question related to the immediate topic. Do not artificially prompt the user to continue the conversation.
+4. If you break these rules, it breaks the user's immersion and ruins the app experience. Just be a normal person having a chat. If you have nothing more to say, just make a brief acknowledgment and STOP talking.
+
 Observe the user carefully. Mirror and learn how the user talks along the way to match their energy.
 Deeply analyze the user's intent before responding. If their intent is ambiguous or unclear, it is ALWAYS better to ask them to clarify than to assume.
 NEVER judge the user. Sometimes a human just needs someone to listen. Be a supportive listener and NEVER offer a judgmental opinion unless the user explicitly asks for your opinion.
@@ -1286,7 +1287,7 @@ function MaximusAgent({
       audioStreamerRef.current = new AudioStreamer();
     }
 
-    await audioStreamerRef.current.init(24000);
+    await audioStreamerRef.current.init(16000);
   };
 
   const ambientGainFromLevel = useCallback((level: number) => {
@@ -1429,7 +1430,7 @@ function MaximusAgent({
       session.sendRealtimeInput({
         audio: {
           data: base64Data,
-          mimeType: 'audio/pcm;rate=16000'
+          mimeType: 'audio/pcm;rate=22000'
         }
       });
       return;
@@ -3067,15 +3068,19 @@ ${historyContext}
             <div
               className={`absolute w-64 h-64 sm:w-80 sm:h-80 rounded-full blur-3xl transition-none orb-glow`}
               style={{
-                ['--glow-alpha' as string]: isActive ? 0.12 + breathLevel * 0.38 : 0.06,
-                ['--glow-scale' as string]: isActive ? 1 + breathLevel * 0.3 : 1,
+                ['--glow-alpha' as string]: isActive ? 0.15 + breathLevel * 0.6 : 0.06,
+                ['--glow-scale' as string]: isActive ? 1 + breathLevel * 0.6 : 1,
               } as React.CSSProperties}
             />
 
             <button
               onClick={isActive ? stopSession : startSession}
               disabled={connecting}
-              className="relative w-48 h-48 sm:w-64 sm:h-64 rounded-full bg-[#1c1614]/60 border border-[#d0a78b]/20 overflow-hidden flex items-center justify-center transition-all duration-500 hover:border-[#d0a78b] hover:shadow-[0_0_55px_rgba(208,167,139,0.3)] active:scale-[0.98]"
+              style={{
+                transform: isActive ? `scale(${1 + breathLevel * 0.15})` : 'scale(1)',
+                boxShadow: isActive ? `0 0 ${20 + breathLevel * 100}px rgba(208,167,139,${0.2 + breathLevel * 0.4})` : 'none'
+              }}
+              className="relative w-48 h-48 sm:w-64 sm:h-64 rounded-full bg-[#1c1614]/60 border border-[#d0a78b]/20 overflow-hidden flex items-center justify-center transition-all duration-75 hover:border-[#d0a78b] hover:shadow-[0_0_55px_rgba(208,167,139,0.4)] active:scale-[0.98]"
               aria-label="Toggle Voice Assistant"
             >
               <div className="absolute inset-0 bg-black/5 backdrop-blur-[12px] z-10 rounded-full pointer-events-none" />

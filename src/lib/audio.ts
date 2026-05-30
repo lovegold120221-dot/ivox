@@ -208,7 +208,7 @@ export class AudioRecorder {
 
   async start() {
     this.audioContext = new (window.AudioContext || (window as any).webkitAudioContext)({
-      sampleRate: 16000
+      sampleRate: 22000
     });
     this.stream = await navigator.mediaDevices.getUserMedia({ audio: true });
     
