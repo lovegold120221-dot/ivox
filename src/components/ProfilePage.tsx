@@ -5,7 +5,6 @@ import { auth } from '../firebase';
 import { signOut } from 'firebase/auth';
 import { supabase } from '../lib/supabase';
 import {
-import {
   uploadAvatar,
   uploadKnowledgeFile,
   listKnowledgeFiles,
@@ -53,7 +52,7 @@ export function ProfilePage({ onClose }: ProfilePageProps) {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
 
-  const [waStatus, setWaStatus] = useState<'not_found' | 'init' | 'qr_ready' | 'paired'>('not_found');
+  const [waStatus, setWaStatus] = useState<string>('not_found');
   const [waQrCode, setWaQrCode] = useState<string | null>(null);
   const [waPhone, setWaPhone] = useState<string | null>(null);
   const [waPermissions, setWaPermissions] = useState<Record<string, boolean>>({
