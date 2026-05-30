@@ -1140,6 +1140,19 @@ function MaximusAgent({
     googleTokenRef.current = googleToken;
   }, [googleToken]);
 
+  const bgAudioRef = useRef<HTMLAudioElement | null>(null);
+
+  useEffect(() => {
+    if (bgAudioRef.current) {
+      if (isActive) {
+        bgAudioRef.current.volume = 0.04;
+        bgAudioRef.current.play().catch(e => console.warn('bg audio play failed', e));
+      } else {
+        bgAudioRef.current.pause();
+      }
+    }
+  }, [isActive]);
+
   const [isCameraActive, setIsCameraActive] = useState(false);
   const [cameraStream, setCameraStream] = useState<MediaStream | null>(null);
   const [facingMode, setFacingMode] = useState<'user' | 'environment'>('user');
@@ -2972,6 +2985,7 @@ ${historyContext}
 
   return (
     <div className="min-h-screen bg-[#161312] text-zinc-100 flex flex-col h-[100dvh] overflow-y-auto select-none relative">
+      <audio ref={bgAudioRef} src="/office.mp3" loop crossOrigin="anonymous" className="hidden" />
       <div
         className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,rgba(208,167,139,0.04),transparent_75%)] pointer-events-none z-0"
       />
