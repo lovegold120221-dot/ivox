@@ -3030,13 +3030,13 @@ ${historyContext}
 
       <header className="sticky top-0 w-full bg-[#161312]/95 backdrop-blur-md border-b border-zinc-800/60 px-4 sm:px-6 py-4 flex items-center justify-between z-30 shrink-0">
         <div className="flex items-center">
-          <button
-            onClick={() => setShowSettings(true)}
-            className="p-1.5 -ml-1.5 rounded-lg text-zinc-400 hover:text-[#d0a78b] hover:bg-zinc-800/50 transition-all duration-300"
-            aria-label="Open Settings"
-          >
-            <Settings className="w-5 h-5 sm:w-6 sm:h-6" />
-          </button>
+            <button
+              onClick={() => setShowSettings(true)}
+              className="p-1.5 -ml-1.5 rounded-lg text-zinc-400 hover:text-[#d0a78b] hover:bg-zinc-800/50 transition-all duration-300"
+              aria-label="Open Settings"
+            >
+              <Settings className="w-6 h-6 sm:w-7 sm:h-7" />
+            </button>
         </div>
 
         <div className="text-center flex flex-col items-center">
@@ -3070,14 +3070,17 @@ ${historyContext}
               } as React.CSSProperties}
             />
 
-            <button
+            <motion.button
               onClick={isActive ? stopSession : startSession}
               disabled={connecting}
-              style={{
-                transform: isActive ? `scale(${1 + breathLevel * 0.15})` : 'scale(1)',
-                boxShadow: isActive ? `0 0 ${20 + breathLevel * 100}px rgba(208,167,139,${0.2 + breathLevel * 0.4})` : 'none'
+              animate={{
+                scale: isActive ? 1 + breathLevel * 0.15 : 1,
+                boxShadow: isActive 
+                  ? `0 0 ${20 + breathLevel * 100}px rgba(208,167,139,${0.2 + breathLevel * 0.4})` 
+                  : '0 0 0px rgba(0,0,0,0)',
               }}
-              className="relative w-48 h-48 sm:w-64 sm:h-64 rounded-full bg-[#1c1614]/60 border border-[#d0a78b]/20 overflow-hidden flex items-center justify-center transition-all duration-75 hover:border-[#d0a78b] hover:shadow-[0_0_55px_rgba(208,167,139,0.4)] active:scale-[0.98]"
+              transition={{ type: 'spring', stiffness: 200, damping: 15 }}
+              className="relative w-48 h-48 sm:w-64 sm:h-64 rounded-full bg-[#1c1614]/60 border border-[#d0a78b]/20 overflow-hidden flex items-center justify-center transition-all duration-300 hover:border-[#d0a78b] hover:shadow-[0_0_55px_rgba(208,167,139,0.4)] active:scale-[0.96]"
               aria-label="Toggle Voice Assistant"
             >
               <div className="absolute inset-0 bg-black/5 backdrop-blur-[12px] z-10 rounded-full pointer-events-none" />
@@ -3117,13 +3120,13 @@ ${historyContext}
       <footer className="sticky bottom-0 w-full h-[72px] sm:h-[92px] bg-[#161312]/95 backdrop-blur-md border-t border-zinc-800/60 z-20 px-4 sm:px-6 box-border select-none shrink-0">
         <div className="relative w-full h-full flex items-center justify-between">
 
-          <button
-            onClick={() => setShowChatPage(true)}
-            className="absolute left-4 sm:left-[50px] flex flex-col items-center justify-center text-zinc-400 hover:text-[#d0a78b] transition-colors duration-300"
-          >
-            <MessageSquare className="w-4 h-4 sm:w-5 sm:h-5 mb-1" />
-            <span className="text-[10px] sm:text-xs font-medium">Chat</span>
-          </button>
+            <button
+              onClick={() => setShowChatPage(true)}
+              className="absolute left-4 sm:left-[50px] flex flex-col items-center justify-center text-zinc-400 hover:text-[#d0a78b] transition-colors duration-300"
+            >
+              <MessageSquare className="w-5 h-5 sm:w-6 sm:h-6 mb-1" />
+              <span className="text-[10px] sm:text-xs font-medium">Chat</span>
+            </button>
 
           <button
             onClick={isActive ? stopSession : startSession}
@@ -3151,22 +3154,34 @@ ${historyContext}
                 </span>
               </div>
             ) : (
-              <>
-                <Power className="w-7 h-7 sm:w-9 sm:h-9" />
-                <span className="text-[7px] sm:text-[9px] font-extrabold uppercase tracking-widest mt-0.5 sm:mt-1">
-                  Start
-                </span>
-              </>
+                <>
+                  <motion.div
+                    animate={{ 
+                      scale: !isActive ? [1, 1.05, 1] : 1,
+                    }}
+                    transition={{ 
+                      repeat: Infinity, 
+                      duration: 2, 
+                      ease: "easeInOut" 
+                    }}
+                    className="flex items-center justify-center"
+                  >
+                    <Power className="w-7 h-7 sm:w-9 sm:h-9" />
+                  </motion.div>
+                  <span className="text-[7px] sm:text-[9px] font-extrabold uppercase tracking-widest mt-0.5 sm:mt-1">
+                    Start
+                  </span>
+                </>
             )}
           </button>
 
-          <button
-            onClick={() => setShowVideoPage(true)}
-            className="absolute right-4 sm:right-[50px] flex flex-col items-center justify-center text-zinc-400 hover:text-[#d0a78b] transition-colors duration-300"
-          >
-            <Video className="w-4 h-4 sm:w-5 sm:h-5 mb-1" />
-            <span className="text-[10px] sm:text-xs font-medium">Video</span>
-          </button>
+            <button
+              onClick={() => setShowVideoPage(true)}
+              className="absolute right-4 sm:right-[50px] flex flex-col items-center justify-center text-zinc-400 hover:text-[#d0a78b] transition-colors duration-300"
+            >
+              <Video className="w-5 h-5 sm:w-6 sm:h-6 mb-1" />
+              <span className="text-[10px] sm:text-xs font-medium">Video</span>
+            </button>
         </div>
       </footer>
 
