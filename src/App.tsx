@@ -1253,6 +1253,7 @@ function MaximusAgent({
   const lastSilenceFillerStyleRef = useRef<string | null>(null);
   const lastUserSpeechAtRef = useRef(Date.now());
   const lastModelTurnCompleteAtRef = useRef(0);
+  const isNewTurnRef = useRef(true);
 
   isActiveRef.current = isActive;
   isAgentSpeakingRef.current = isAgentSpeaking;
@@ -1601,6 +1602,8 @@ function MaximusAgent({
 
     if (!text || !sessionRef.current || !isActive) return;
 
+    audioStreamerRef.current?.stop();
+    setIsAgentSpeaking(false);
     markUserSpeechActivity();
     userTranscriptRef.current = text;
     setUserTranscript(text);
@@ -2774,6 +2777,8 @@ ${historyContext}
                 const text = content.inputTranscription.text.trim();
 
                 if (text) {
+                  audioStreamerRef.current?.stop();
+                  setIsAgentSpeaking(false);
                   markUserSpeechActivity();
                   userTranscriptRef.current = text;
                   setUserTranscript(text);
@@ -2807,6 +2812,10 @@ ${historyContext}
                 for (const part of modelTurn.parts) {
                   if (part.inlineData?.data) {
                     clearSilenceFillerTimer();
+                    if (isNewTurnRef.current) {
+                      audioStreamerRef.current?.stop();
+                      isNewTurnRef.current = false;
+                    }
                     audioStreamerRef.current?.addPCM16(part.inlineData.data);
                     setIsAgentSpeaking(true);
 
@@ -2850,6 +2859,7 @@ ${historyContext}
               }
 
               if ((message.serverContent as any).turnComplete) {
+                isNewTurnRef.current = true;
                 const current = modelTranscriptRef.current;
                 const isSilenceFillerTurn = silenceFillerInFlightRef.current;
 
