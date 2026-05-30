@@ -3038,53 +3038,48 @@ ${historyContext}
         </div>
       </header>
 
-      <main className="flex-1 flex flex-col items-center relative z-10 px-4">
+      <main className="flex-1 relative w-full overflow-hidden">
+        <div className="absolute inset-0 flex items-center justify-center">
+          <div className="relative flex items-center justify-center">
+            <div
+              className={`absolute w-64 h-64 sm:w-80 sm:h-80 rounded-full blur-3xl transition-none orb-glow`}
+              style={{
+                ['--glow-alpha' as string]: isActive ? 0.12 + breathLevel * 0.38 : 0.06,
+                ['--glow-scale' as string]: isActive ? 1 + breathLevel * 0.3 : 1,
+              } as React.CSSProperties}
+            />
 
-        <div className="flex-1 flex flex-col items-center justify-center w-full">
-        <p className="text-zinc-300 text-xs sm:text-sm font-normal tracking-wide mt-2 px-4 text-center transition-all duration-300">
-          {isActive ? 'Beatrice is listening...' : connecting ? 'Connecting...' : 'Beatrice is offline. Connect to begin.'}
-        </p>
+            <button
+              onClick={isActive ? stopSession : startSession}
+              disabled={connecting}
+              className="relative w-48 h-48 sm:w-64 sm:h-64 rounded-full bg-[#1c1614]/60 border border-[#d0a78b]/20 overflow-hidden flex items-center justify-center transition-all duration-500 hover:border-[#d0a78b] hover:shadow-[0_0_55px_rgba(208,167,139,0.3)] active:scale-[0.98]"
+              aria-label="Toggle Voice Assistant"
+            >
+              <div className="absolute inset-0 bg-black/5 backdrop-blur-[12px] z-10 rounded-full pointer-events-none" />
 
-        <div className="relative flex items-center justify-center w-full h-[240px] sm:h-[320px]">
-          <div
-            className={`absolute w-64 h-64 sm:w-80 sm:h-80 rounded-full blur-3xl transition-none orb-glow`}
-            style={{
-              ['--glow-alpha' as string]: isActive ? 0.12 + breathLevel * 0.38 : 0.06,
-              ['--glow-scale' as string]: isActive ? 1 + breathLevel * 0.3 : 1,
-            } as React.CSSProperties}
-          />
+              <div className="absolute inset-0 w-full h-full flex items-center justify-center transition-transform duration-100 ease-out z-0">
+                <div className="blob-1 absolute w-40 h-40 sm:w-56 sm:h-56 rounded-full bg-[radial-gradient(circle,rgba(208,167,139,0.65)_0%,transparent_70%)] blur-md" />
+                <div className="blob-2 absolute w-36 h-36 sm:w-52 sm:h-52 rounded-full bg-[radial-gradient(circle,rgba(171,123,96,0.45)_0%,transparent_70%)] blur-md" />
+                <div className="blob-3 absolute w-32 h-32 sm:w-48 sm:h-48 rounded-full bg-[radial-gradient(circle,rgba(235,208,188,0.55)_0%,transparent_70%)] blur-md" />
+                <div className="absolute w-14 h-14 sm:w-20 sm:h-20 rounded-full bg-[#d0a78b]/15 blur-xl" />
+              </div>
 
-          <button
-            onClick={isActive ? stopSession : startSession}
-            disabled={connecting}
-            className="relative w-48 h-48 sm:w-64 sm:h-64 rounded-full bg-[#1c1614]/60 border border-[#d0a78b]/20 overflow-hidden flex items-center justify-center transition-all duration-500 hover:border-[#d0a78b] hover:shadow-[0_0_55px_rgba(208,167,139,0.3)] active:scale-[0.98]"
-            aria-label="Toggle Voice Assistant"
-          >
-            <div className="absolute inset-0 bg-black/5 backdrop-blur-[12px] z-10 rounded-full pointer-events-none" />
-
-            <div className="absolute inset-0 w-full h-full flex items-center justify-center transition-transform duration-100 ease-out z-0">
-              <div className="blob-1 absolute w-40 h-40 sm:w-56 sm:h-56 rounded-full bg-[radial-gradient(circle,rgba(208,167,139,0.65)_0%,transparent_70%)] blur-md" />
-              <div className="blob-2 absolute w-36 h-36 sm:w-52 sm:h-52 rounded-full bg-[radial-gradient(circle,rgba(171,123,96,0.45)_0%,transparent_70%)] blur-md" />
-              <div className="blob-3 absolute w-32 h-32 sm:w-48 sm:h-48 rounded-full bg-[radial-gradient(circle,rgba(235,208,188,0.55)_0%,transparent_70%)] blur-md" />
-              <div className="absolute w-14 h-14 sm:w-20 sm:h-20 rounded-full bg-[#d0a78b]/15 blur-xl" />
-            </div>
-
-            <div className="absolute inset-0 z-20 rounded-full flex items-center justify-center overflow-hidden">
-              <canvas
-                ref={cloudCanvasRef}
-                className="absolute inset-0 w-full h-full pointer-events-none"
-                width={256}
-                height={256}
-              />
-              {connecting ? (
-                <Loader2 className="w-7 h-7 sm:w-9 sm:h-9 animate-spin text-[#d0a78b] z-10" />
-              ) : isActive ? null : null}
-            </div>
-          </button>
-        </div>
+              <div className="absolute inset-0 z-20 rounded-full flex items-center justify-center overflow-hidden">
+                <canvas
+                  ref={cloudCanvasRef}
+                  className="absolute inset-0 w-full h-full pointer-events-none"
+                  width={256}
+                  height={256}
+                />
+                {connecting ? (
+                  <Loader2 className="w-7 h-7 sm:w-9 sm:h-9 animate-spin text-[#d0a78b] z-10" />
+                ) : isActive ? null : null}
+              </div>
+            </button>
+          </div>
         </div>
 
-        <div className="w-full max-w-2xl px-4 sm:px-8 flex flex-col items-center justify-center min-h-[80px] transition-opacity duration-700 pb-8">
+        <div className="absolute bottom-[45px] sm:bottom-[65px] left-0 right-0 w-full px-4 sm:px-8 flex flex-col items-center justify-end h-[100px] pointer-events-none z-10">
           <UnifiedTranscript
             userText={userTranscript}
             modelText={modelTranscript}
