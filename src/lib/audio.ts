@@ -1,12 +1,11 @@
 export class AudioStreamer {
   private audioContext: AudioContext | null = null;
-  private source: AudioBufferSourceNode | null = null;
   private analyser: AnalyserNode | null = null;
   private dataArray: Uint8Array | null = null;
   private queue: Float32Array[] = [];
-  private isPlaying = false;
   private sampleRate = 24000;
   private scheduledTime = 0;
+  private activeSources: AudioBufferSourceNode[] = [];
 
   async init(sampleRate = 24000) {
     if (this.audioContext && this.audioContext.state !== 'closed') {
@@ -15,9 +14,7 @@ export class AudioStreamer {
       } catch (e) {}
     }
     this.sampleRate = sampleRate;
-    this.audioContext = new (window.AudioContext || (window as any).webkitAudioContext)({
-      sampleRate,
-    });
+    this.audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
     this.analyser = this.audioContext.createAnalyser();
     this.analyser.fftSize = 64;
     const bufferLength = this.analyser.frequencyBinCount;
@@ -25,8 +22,8 @@ export class AudioStreamer {
     this.analyser.connect(this.audioContext.destination);
 
     this.scheduledTime = 0;
-    this.isPlaying = false;
     this.queue = [];
+    this.activeSources = [];
   }
 
   getFrequencies(numBins: number = 5): number[] {
@@ -58,47 +55,44 @@ export class AudioStreamer {
         float32Array[i] = int16Array[i] / (int16Array[i] < 0 ? 0x8000 : 0x7FFF);
     }
     this.queue.push(float32Array);
-    if (!this.isPlaying) {
-      this.playNext();
-    }
+    this.drainQueue();
   }
 
-  private playNext() {
-    if (!this.audioContext || this.queue.length === 0) {
-      this.isPlaying = false;
-      return;
+  private drainQueue() {
+    if (!this.audioContext) return;
+    while (this.queue.length > 0) {
+      const chunk = this.queue.shift()!;
+      const audioBuffer = this.audioContext.createBuffer(1, chunk.length, this.sampleRate);
+      audioBuffer.getChannelData(0).set(chunk);
+      
+      const source = this.audioContext.createBufferSource();
+      source.buffer = audioBuffer;
+      source.connect(this.analyser || this.audioContext.destination);
+      
+      const currentTime = this.audioContext.currentTime;
+      if (this.scheduledTime < currentTime) {
+        this.scheduledTime = currentTime + 0.02; // Small look-ahead safety buffer
+      }
+      
+      source.start(this.scheduledTime);
+      this.scheduledTime += audioBuffer.duration;
+      
+      source.onended = () => {
+        this.activeSources = this.activeSources.filter(s => s !== source);
+      };
+      this.activeSources.push(source);
     }
-    this.isPlaying = true;
-    const chunk = this.queue.shift()!;
-    const audioBuffer = this.audioContext.createBuffer(1, chunk.length, this.sampleRate);
-    audioBuffer.getChannelData(0).set(chunk);
-    
-    this.source = this.audioContext.createBufferSource();
-    this.source.buffer = audioBuffer;
-    this.source.connect(this.analyser || this.audioContext.destination);
-    
-    const currentTime = this.audioContext.currentTime;
-    if (this.scheduledTime < currentTime) {
-      this.scheduledTime = currentTime;
-    }
-    
-    this.source.start(this.scheduledTime);
-    this.scheduledTime += audioBuffer.duration;
-    
-    // Play next seamlessly, not perfect but avoids large gaps
-    setTimeout(() => {
-        this.playNext();
-    }, (audioBuffer.duration * 1000) - 20); 
   }
 
   stop() {
     this.queue = [];
-    if (this.source) {
+    this.activeSources.forEach(s => {
       try {
-        this.source.stop();
+        s.stop();
+        s.disconnect();
       } catch (e) {}
-    }
-    this.isPlaying = false;
+    });
+    this.activeSources = [];
     this.scheduledTime = 0;
   }
 }
@@ -207,9 +201,7 @@ export class AudioRecorder {
   }
 
   async start() {
-    this.audioContext = new (window.AudioContext || (window as any).webkitAudioContext)({
-      sampleRate: 22000
-    });
+    this.audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
     this.stream = await navigator.mediaDevices.getUserMedia({ audio: true });
     
     if (!this.audioContext) return;
@@ -225,9 +217,10 @@ export class AudioRecorder {
     this.processor = this.audioContext.createScriptProcessor(2048, 1, 1);
     this.processor.onaudioprocess = (e) => {
       const input = e.inputBuffer.getChannelData(0);
-      const output = new Int16Array(input.length);
-      for (let i = 0; i < input.length; i++) {
-        const s = Math.max(-1, Math.min(1, input[i]));
+      const resampled = this.downsampleBuffer(input, this.audioContext!.sampleRate, 16000);
+      const output = new Int16Array(resampled.length);
+      for (let i = 0; i < resampled.length; i++) {
+        const s = Math.max(-1, Math.min(1, resampled[i]));
         output[i] = s < 0 ? s * 0x8000 : s * 0x7FFF;
       }
       const buffer = new ArrayBuffer(output.length * 2);
@@ -248,6 +241,31 @@ export class AudioRecorder {
     this.silentSink.gain.value = 0;
     this.processor.connect(this.silentSink);
     this.silentSink.connect(this.audioContext.destination);
+  }
+
+  private downsampleBuffer(buffer: Float32Array, inSampleRate: number, outSampleRate: number): Float32Array {
+    if (outSampleRate === inSampleRate) return buffer;
+    if (outSampleRate > inSampleRate) {
+      return buffer;
+    }
+    const sampleRateRatio = inSampleRate / outSampleRate;
+    const newLength = Math.round(buffer.length / sampleRateRatio);
+    const result = new Float32Array(newLength);
+    let offsetResult = 0;
+    let offsetBuffer = 0;
+    while (offsetResult < result.length) {
+      const nextOffsetBuffer = Math.round((offsetResult + 1) * sampleRateRatio);
+      let accum = 0;
+      let count = 0;
+      for (let i = offsetBuffer; i < nextOffsetBuffer && i < buffer.length; i++) {
+        accum += buffer[i];
+        count++;
+      }
+      result[offsetResult] = count > 0 ? accum / count : 0;
+      offsetResult++;
+      offsetBuffer = nextOffsetBuffer;
+    }
+    return result;
   }
 
   getFrequencies(numBins: number = 5): number[] {
