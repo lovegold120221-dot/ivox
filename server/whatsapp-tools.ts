@@ -50,7 +50,7 @@ export async function handleSendMessage(
 
   try {
     const sock = wa.getClient(userId);
-    const chatId = toWhatsAppJid(to);
+    const chatId = wa.resolveContactJid(userId, to);
     if (!sock) {
       const cloudSent = await wa.sendCloudTextMessage(userId, to, text);
       if (cloudSent) {
@@ -85,7 +85,17 @@ export async function handleGetContacts(
   const denied = requirePerm(permissions, 'access_contacts');
   if (denied) return { ok: false, error: denied };
   if (!wa.isPaired(userId)) return { ok: false, error: 'WhatsApp not paired' };
-  return { ok: true, contacts: wa.getContacts(userId) };
+  const raw = wa.getContacts(userId);
+  // Enrich contacts with explicit labels so the AI model can distinguish
+  // between the user's saved name and the contact's own WhatsApp profile name
+  const contacts = raw.map(c => ({
+    id: c.id,
+    number: c.number,
+    savedName: c.name,            // What the USER saved this contact as in their phonebook
+    whatsappProfileName: c.notify, // The contact's own public WhatsApp display name (pushName)
+    verifiedName: c.verifiedName,  // Verified business name (if applicable)
+  }));
+  return { ok: true, contacts };
 }
 
 export async function handleAddContact(
@@ -176,6 +186,6 @@ export async function handleGetMessageHistory(
   if (denied) return { ok: false, error: denied };
   if (!wa.isPaired(userId)) return { ok: false, error: 'WhatsApp not paired' };
   const chatError = requireText(chatId, 'Chat ID');
-  if (chatError) return { ok: false, error: chatError };
-  return { ok: true, messages: wa.getMessageHistory(userId, chatId, cleanLimit(limit)) };
+  const resolvedJid = wa.resolveContactJid(userId, chatId);
+  return { ok: true, messages: wa.getMessageHistory(userId, resolvedJid, cleanLimit(limit)) };
 }

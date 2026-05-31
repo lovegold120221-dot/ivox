@@ -96,8 +96,11 @@ export function VideoPage({
     onSwitchCamera(next);
   };
 
+  const canScreenShare = typeof navigator !== 'undefined' && 'getDisplayMedia' in navigator.mediaDevices;
+
   const toggleScreenShare = async () => {
     if (isSharingScreen) {
+      // Stop screen share or camera fallback
       if (screenStreamRef.current) {
         screenStreamRef.current.getTracks().forEach(t => t.stop());
         screenStreamRef.current = null;
@@ -108,12 +111,30 @@ export function VideoPage({
       }
       setIsSharingScreen(false);
       onScreenShareChange(false);
-      sendTextToLive("The user stopped sharing their screen.");
+      if (canScreenShare) {
+        sendTextToLive("The user stopped sharing their screen.");
+      } else {
+        sendTextToLive("The user stopped sharing their view from the rear camera.");
+      }
       if (localVideoRef.current && isCameraActive && cameraStream) {
         localVideoRef.current.srcObject = cameraStream;
       } else if (localVideoRef.current) {
         localVideoRef.current.srcObject = null;
       }
+      return;
+    }
+
+    if (!canScreenShare) {
+      // Mobile fallback: use rear camera instead of screen share
+      // This works on all devices — point the phone at whatever you want to show
+      if (!(isCameraActive && facingMode === 'environment')) {
+        onSwitchCamera('environment');
+      }
+      // Camera is now (or already was) showing the rear view, which works as mobile "screen share"
+
+      setIsSharingScreen(true);
+      onScreenShareChange(true);
+      sendTextToLive("The user is now sharing their view with you through their rear camera. They're pointing their phone at whatever they want to show you. React naturally - look at what they're showing you, comment on it casually, help them with what you see. Keep it conversational like you're looking over their shoulder.");
       return;
     }
 
@@ -205,29 +226,29 @@ export function VideoPage({
       <canvas ref={localCanvasRef} className="hidden" />
 
       <header
-        className={`absolute top-0 left-0 right-0 z-20 px-3 sm:px-5 py-3 sm:py-4 flex items-center justify-between transition-opacity duration-300 ${
-          showControls ? 'opacity-100' : 'opacity-0 pointer-events-none'
+        className={`absolute top-0 left-0 right-0 z-20 px-3 sm:px-5 py-3 sm:py-4 flex items-center justify-between transition-all duration-500 ${
+          showControls ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-2 pointer-events-none'
         }`}
       >
         <button
           onClick={onClose}
-          className="p-2.5 rounded-full bg-black/50 backdrop-blur-md text-white hover:bg-black/70 transition-all"
+          className="p-2.5 rounded-full bg-white/5 backdrop-blur-2xl border border-white/10 text-white hover:bg-white/10 active:scale-95 transition-all"
           aria-label="Close video"
           title="Close video"
         >
-          <X className="w-5 h-5" />
+          <X className="w-4 h-4" />
         </button>
 
         <div className="flex items-center gap-2">
           {isRecording && (
-            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-black/50 backdrop-blur-md">
+            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/5 backdrop-blur-2xl border border-white/10">
               <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse shadow-[0_0_8px_rgba(239,68,68,0.6)]" />
-              <span className="text-[11px] text-white font-mono font-bold tabular-nums tracking-wider">
+              <span className="text-[11px] text-white font-['SF_Pro_Text',system-ui,sans-serif] font-semibold tabular-nums tracking-wider">
                 {formatTime(elapsed)}
               </span>
               {isSharingScreen && (
-                <span className="text-[9px] text-orange-300 font-bold uppercase tracking-widest ml-1">
-                  Screenshare
+                <span className="text-[9px] text-orange-300 font-semibold uppercase tracking-wider ml-1">
+                  Share
                 </span>
               )}
             </div>
@@ -248,12 +269,12 @@ export function VideoPage({
           />
         ) : (
           <div className="flex flex-col items-center gap-6 text-center px-8">
-            <div className="w-24 h-24 rounded-full bg-zinc-900 border border-zinc-800 flex items-center justify-center">
-              <Camera className="w-10 h-10 text-zinc-600" />
+            <div className="w-20 h-20 rounded-full bg-white/5 backdrop-blur-2xl border border-white/10 flex items-center justify-center">
+              <Camera className="w-9 h-9 text-white/30" />
             </div>
             <div>
-              <p className="text-zinc-400 text-lg font-medium mb-1">Camera is off</p>
-              <p className="text-zinc-600 text-sm">Enable your camera or share your screen</p>
+              <p className="text-white/50 text-base font-['SF_Pro_Text',system-ui,sans-serif] font-medium mb-1 tracking-tight">Camera Off</p>
+              <p className="text-white/20 text-sm font-['SF_Pro_Text',system-ui,sans-serif]">Enable your camera or share your screen</p>
             </div>
           </div>
         )}
@@ -266,55 +287,55 @@ export function VideoPage({
       </div>
 
       <footer
-        className={`absolute bottom-0 left-0 right-0 z-20 pb-8 px-6 flex items-center justify-center gap-8 transition-opacity duration-300 ${
-          showControls ? 'opacity-100' : 'opacity-0 pointer-events-none'
+        className={`absolute bottom-0 left-0 right-0 z-20 pb-10 px-6 flex items-center justify-center gap-6 transition-all duration-500 ${
+          showControls ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4 pointer-events-none'
         }`}
       >
         <button
           onClick={handleSwapCamera}
           disabled={!isCameraActive || isSharingScreen}
-          className={`w-14 h-14 rounded-full flex items-center justify-center transition-all duration-300 shadow-lg ${
+          className={`w-12 h-12 sm:w-14 sm:h-14 rounded-full flex items-center justify-center transition-all duration-300 active:scale-90 ${
             !isCameraActive || isSharingScreen
-              ? 'bg-zinc-900/80 border-2 border-zinc-700 text-zinc-500 opacity-50 cursor-not-allowed'
-              : 'bg-zinc-900/80 border-2 border-zinc-700 text-zinc-300 hover:bg-zinc-800 hover:border-[#d0a78b]/40 hover:text-[#d0a78b]'
+              ? 'bg-white/5 border border-white/5 text-white/20 opacity-50 cursor-not-allowed'
+              : 'bg-white/5 backdrop-blur-2xl border border-white/10 text-white/60 hover:bg-white/10 hover:text-white hover:border-white/20'
           }`}
           title="Switch camera"
         >
-          <RotateCw className="w-5 h-5" />
+          <RotateCw className="w-4 h-4 sm:w-5 sm:h-5" />
         </button>
 
         <button
           onClick={handleToggle}
           disabled={isConnecting || isSharingScreen}
-          className={`w-16 h-16 rounded-full flex items-center justify-center transition-all duration-300 shadow-lg ${
+          className={`w-14 h-14 sm:w-[68px] sm:h-[68px] rounded-full flex items-center justify-center transition-all duration-300 active:scale-90 shadow-xl ${
             isSharingScreen
-              ? 'bg-zinc-900/80 border-2 border-zinc-700 text-zinc-500 opacity-50 cursor-not-allowed'
+              ? 'bg-white/5 border border-white/5 text-white/20 opacity-50 cursor-not-allowed'
               : isCameraActive
                 ? 'bg-red-500/20 border-2 border-red-500/40 text-red-500 hover:bg-red-500/30'
-                : 'bg-zinc-900/80 border-2 border-zinc-700 text-zinc-300 hover:bg-zinc-800 hover:border-[#d0a78b]/40 hover:text-[#d0a78b]'
+                : 'bg-white/10 backdrop-blur-2xl border border-white/15 text-white/80 hover:bg-white/15 hover:text-white'
           }`}
           title={isCameraActive ? 'Stop recording' : 'Start camera'}
         >
           {isCameraActive ? (
-            <Square className="w-5 h-5 fill-current" />
+            <Square className="w-4 h-4 sm:w-5 sm:h-5 fill-current" />
           ) : (
-            <Camera className="w-6 h-6" />
+            <Camera className="w-5 h-5 sm:w-6 sm:h-6" />
           )}
         </button>
 
         <button
           onClick={toggleScreenShare}
-          className={`w-14 h-14 rounded-full flex items-center justify-center transition-all duration-300 shadow-lg ${
+          className={`w-12 h-12 sm:w-14 sm:h-14 rounded-full flex items-center justify-center transition-all duration-300 active:scale-90 ${
             isSharingScreen
-              ? 'bg-orange-500/20 border-2 border-orange-500/40 text-orange-500 hover:bg-orange-500/30'
-              : 'bg-zinc-900/80 border-2 border-zinc-700 text-zinc-300 hover:bg-zinc-800 hover:border-[#d0a78b]/40 hover:text-[#d0a78b]'
+              ? 'bg-[#d0a78b]/20 border-2 border-[#d0a78b]/40 text-[#d0a78b] hover:bg-[#d0a78b]/30'
+              : 'bg-white/5 backdrop-blur-2xl border border-white/10 text-white/60 hover:bg-white/10 hover:text-white hover:border-white/20'
           }`}
-          title={isSharingScreen ? 'Stop sharing' : 'Share screen'}
+          title={isSharingScreen ? 'Stop sharing' : canScreenShare ? 'Share screen' : 'Share via camera'}
         >
           {isSharingScreen ? (
-            <MonitorStop className="w-5 h-5" />
+            <MonitorStop className="w-4 h-4 sm:w-5 sm:h-5" />
           ) : (
-            <Monitor className="w-5 h-5" />
+            <Monitor className="w-4 h-4 sm:w-5 sm:h-5" />
           )}
         </button>
       </footer>

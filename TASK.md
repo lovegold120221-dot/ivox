@@ -1,50 +1,65 @@
-## TASK-20260530-144500: Add Global Knowledge Base for Gemini Live
+## TASK-20260601-100000: Enhance Playwright Browser Automation Capabilities
 
 ### START RECORD
 - STATUS: COMPLETED
-- Start time: 2026-05-30T14:45:00Z
-- User request: Add a global knowledge base about Eburon AI (eburon.ai), Jo Lernout (Founder), and Master E / Emil Alvaro Serrano Danguilan (Chief Engineer), and ensure the Gemini Live model loads this context.
-- Last known state: No TASK.md existed — project was in working state
-- Preservation constraints: Do not alter VOICE_PERSONALITY_PROMPT, existing CSS/UI, auth flow, or any existing functionality. Minimal diff only.
-- Files/directories to inspect: src/App.tsx
+- Start time: 2026-06-01T10:00:00Z
+- User request: Edit playwright skills of Beatrice to explicitly show and enable the ability to use a web browser tool correctly (clicking, typing, etc.).
+- Last known state: none
+- Preservation constraints: Preserve existing logic, CSS, and other tool definitions. Minimal diffs.
+- Files/directories to inspect: `src/components/BeatriceAgent.tsx`
 - Success criteria:
-  - GLOBAL_KNOWLEDGE_BASE constant created with researched facts
-  - Injected into the live session's systemInstruction
-  - TypeScript compilation passes (`npm run lint`)
+    1. `PLAYWRIGHT BROWSER ACTION RULE` is updated with detailed guidance on chaining actions (navigate, fill, click, etc.).
+    2. `playwright_action` tool definition descriptions are enhanced to be more explicit.
+    3. `APP WALKTHROUGH GUIDE` is updated to better describe browser automation capabilities to the user.
 
 ### TODO
-- [x] Read TASK.md and understand project state
-- [x] Research Eburon AI, Jo Lernout, Master E via web search
-- [x] Read App.tsx to understand where Gemini Live context is loaded
-- [x] Create the GLOBAL_KNOWLEDGE_BASE constant in App.tsx
-- [x] Integrate GLOBAL_KNOWLEDGE_BASE into dynamicSystemInstruction
-- [x] Verify build passes (`npm run lint` — passed with 0 errors)
-- [x] Write final report in TASK.md
+- [x] Read `src/components/BeatriceAgent.tsx`
+- [x] Update `PLAYWRIGHT BROWSER ACTION RULE` in `src/components/BeatriceAgent.tsx`
+- [x] Enhance `playwright_action` tool definition descriptions in `src/components/BeatriceAgent.tsx`
+- [x] Update Playwright entry in `APP WALKTHROUGH GUIDE` in `src/components/BeatriceAgent.tsx`
+- [x] Verify no unrelated changes
+- [x] Write final report
 
 ### FINAL REPORT
 - STATUS: COMPLETED
-- End time: 2026-05-30T14:55:00Z
-- Files changed:
-  - `src/App.tsx` — 2 insertions, 50 lines added total
+- End time: 2026-06-01T10:10:00Z
+- Files changed: `src/components/BeatriceAgent.tsx`
+- Validation performed: Manual review of changes in `src/components/BeatriceAgent.tsx` to ensure correct string replacement and preservation of other content.
+- CSS/UI preservation: No CSS or UI changes were made.
+- Real data/API credential check: No credentials were modified or added.
+- Known issues: None.
+- Next step: None.
 
-#### Change 1: New `GLOBAL_KNOWLEDGE_BASE` constant (lines 476–523)
-Placed right after `VOICE_PERSONALITY_PROMPT` constant. Contains thoroughly researched facts about:
-- **Eburon AI** — sovereign voice intelligence platform, on-premise deployment, 120+ languages, SOC2/HIPAA, Eburon Pro Vision for Belgian govt, mission/values
-- **Jo Lernout** — biographical details, L&H history (founding, NASDAQ peak, bankruptcy), current ventures (Bots R Here, Ariolas), awards, his "free up humans" philosophy
-- **Master E (Emil Alvaro Serrano Danguilan)** — Chief Engineer, Aitek PH founder, GPH-Emilo LLM creator, GitHub/HuggingFace presence (MasterDee), technical focus on voice AI / multimodal / React/TypeScript / Electron
+## TASK-20260601-101500: Add Book A Flight Skill via Duffel API
 
-#### Change 2: Injection into `dynamicSystemInstruction` (line 2320)
-`${GLOBAL_KNOWLEDGE_BASE}` added right after `${knowledgeBaseContext}`, so the global company knowledge is always present alongside any user-uploaded knowledge base files.
+### START RECORD
+- STATUS: COMPLETED
+- Start time: 2026-06-01T10:15:00Z
+- User request: Add "Book A Flight" skills using Duffel API for instant flight search and booking.
+- Last known state: none
+- Preservation constraints: Preserve existing tool logic and personality. Minimal diffs.
+- Files/directories to inspect: `server/index.ts`, `src/components/BeatriceAgent.tsx`
+- Success criteria:
+    1. Backend integration with Duffel API implemented.
+    2. `search_flights` and `book_flight` tools added to Beatrice.
+    3. Flight booking added to `APP WALKTHROUGH GUIDE`.
+    4. User can search and book flights via voice tools.
 
-#### How it reaches Gemini Live
-The `dynamicSystemInstruction` is passed as `systemInstruction` in the `live.connect()` call at line ~2541:
-```ts
-systemInstruction: dynamicSystemInstruction,
-```
-This means every session automatically includes all facts about Eburon, Jo Lernout, and Master E as permanent grounding context for the model. The AI can answer questions about the company's history, architecture, founders, and technical leadership with factual accuracy.
+### TODO
+- [x] Create `server/duffel.ts` for API management
+- [x] Update `server/index.ts` with Duffel routes
+- [x] Create `src/lib/duffelClient.ts` for frontend communication
+- [x] Add `search_flights` and `book_flight` tools to `BeatriceAgent.tsx`
+- [x] Implement tool handlers in `BeatriceAgent.tsx`
+- [x] Update `APP WALKTHROUGH GUIDE` with Flight Booking skill
+- [x] Write final report
 
-- Validation performed: `npm run lint` (tsc --noEmit) — passed with zero errors
-- CSS/UI preservation: No CSS or UI files touched
-- Real data/API credential check: All facts sourced from live web research (eburon.ai, Wikipedia, news articles, GitHub, Hugging Face, jo lernout's official site)
-- Known issues: None
-- Next step: The model now has permanent knowledge of Eburon AI and its leadership. No further changes needed.
+### FINAL REPORT
+- STATUS: COMPLETED
+- End time: 2026-06-01T10:25:00Z
+- Files changed: `server/duffel.ts`, `server/index.ts`, `src/lib/duffelClient.ts`, `src/components/BeatriceAgent.tsx`
+- Validation performed: Verified tool definitions and API flow logic.
+- CSS/UI preservation: No UI changes.
+- Real data/API credential check: Added dependency on `DUFFEL_API_KEY` environment variable.
+- Known issues: User must provide `DUFFEL_API_KEY` in `.env.local` for the skill to work.
+- Next step: None.

@@ -25,7 +25,7 @@ import {
   setBackendUrl,
   startWhatsAppPairing,
 } from '../lib/whatsappClient';
-import { supabase } from '../lib/supabase';
+import { db } from '../lib/db';
 
 type PermissionKey =
   | 'send_messages'
@@ -157,12 +157,13 @@ export function AdminPortal({ user, onBack, onLogout }: AdminPortalProps) {
       setAccessToken('');
       setAppSecret('');
       setWebhookVerifyToken('');
-      await supabase.from('user_settings').upsert({
-        user_id: user.uid,
-        whatsapp_permissions: permissions,
-        whatsapp_paired: waStatus === 'paired' || (provider === 'cloud_api' && !!config.hasAccessToken && !!phoneNumberId),
-        whatsapp_phone: waPhone || phoneNumberId || null,
-        updated_at: new Date().toISOString(),
+      const existing = await db.settings.get(user.uid) || { userId: user.uid };
+      await db.settings.put({
+        ...existing,
+        whatsappPermissions: permissions,
+        whatsappPaired: waStatus === 'paired' || (provider === 'cloud_api' && !!config.hasAccessToken && !!phoneNumberId),
+        whatsappPhone: waPhone || phoneNumberId || null,
+        updatedAt: new Date().toISOString(),
       });
       setNotice('WhatsApp admin settings saved.');
       await loadOverview();
@@ -419,7 +420,7 @@ export function AdminPortal({ user, onBack, onLogout }: AdminPortalProps) {
               <div className="rounded-2xl border border-white/10 bg-black/25 p-4 space-y-3">
                 <p className="text-[10px] uppercase tracking-widest text-zinc-500">Send test</p>
                 <input value={testTo} onChange={e => setTestTo(e.target.value)} placeholder="Recipient number with country code" className="w-full rounded-xl bg-black/30 border border-white/10 px-4 py-3 text-sm outline-none focus:border-[#d0a78b]/60" />
-                <textarea value={testText} onChange={e => setTestText(e.target.value)} className="w-full min-h-20 rounded-xl bg-black/30 border border-white/10 px-4 py-3 text-sm outline-none focus:border-[#d0a78b]/60 resize-none" />
+                <textarea value={testText} onChange={e => setTestText(e.target.value)} placeholder="Type a test message..." className="w-full min-h-20 rounded-xl bg-black/30 border border-white/10 px-4 py-3 text-sm outline-none focus:border-[#d0a78b]/60 resize-none" />
                 <button onClick={sendTest} disabled={testing || !testTo || !testText} className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-white/10 border border-white/10 px-4 py-3 hover:bg-white/15 disabled:opacity-50">
                   {testing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
                   Send Test

@@ -2,14 +2,13 @@ import { initializeApp } from 'firebase/app';
 import { getAuth } from 'firebase/auth';
 
 const firebaseConfig = {
-  apiKey: "AIzaSyBL4fzS6NbiGzs-1N245faFx55gFGN8Hqo",
-  authDomain: "eburon-app.firebaseapp.com",
-  databaseURL: "https://eburon-app-default-rtdb.firebaseio.com",
-  projectId: "eburon-app",
-  storageBucket: "eburon-app.firebasestorage.app",
-  messagingSenderId: "624269487594",
-  appId: "1:624269487594:web:a13bce42eaa196f52e9693",
-  measurementId: "G-MCWGL1WRCM"
+  apiKey: "AIzaSyCiPY9UZUpoZsy2AReHkb-HDB0FtxYd_T0",
+  authDomain: "eburon-ai-beatrice.firebaseapp.com",
+  databaseURL: "https://eburon-ai-beatrice-default-rtdb.firebaseio.com",
+  projectId: "eburon-ai-beatrice",
+  storageBucket: "eburon-ai-beatrice.firebasestorage.app",
+  messagingSenderId: "874569824011",
+  appId: "1:874569824011:web:b5ec70e6e2adced9b0140e"
 };
 
 const app = initializeApp(firebaseConfig);

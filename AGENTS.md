@@ -12,28 +12,44 @@ There is no test framework, no CI, and no pre-commit hooks.
 
 ## Environment
 
-- `.env.local` holds `GEMINI_API_KEY`. It is gitignored but an example is at `.env.example`.
-- The key is injected as `process.env.GEMINI_API_KEY` (not `VITE_`-prefixed) via `vite.config.ts` `define`. Do not rename this.
+- `.env.local` holds all secrets. It is gitignored but an example is at `.env.example`.
+- `GEMINI_API_KEY` is injected as `process.env.GEMINI_API_KEY` (not `VITE_`-prefixed) via `vite.config.ts` `define`. Do not rename this key.
+- Firebase config (`VITE_FIREBASE_*`), Google OAuth (`VITE_GOOGLE_CLIENT_ID`), and Supabase URL/key are all `VITE_`-prefixed env vars.
 - `DISABLE_HMR=true` disables HMR (used in AI Studio to prevent flickering during agent edits). Keep this check in `vite.config.ts`.
 - `APP_URL` is injected by AI Studio at runtime for Cloud Run deployments. Do not hardcode a base URL.
+- `VITE_SANDBOX_URL` points to the backend server (default `http://localhost:4200`).
+- Server-only vars (`GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `SANDBOX_PORT`, `SANDBOX_ROOT`, `WA_AUTH_ROOT`, `WA_LOG_LEVEL`) are read by `server/index.ts` via `dotenv/config`.
 
 ## Architecture
 
-Single-package Vite + React 19 + TypeScript app. No monorepo. No backend server — Firebase handles auth and data, Gemini Live API handles the AI voice pipeline.
+Single-package Vite + React 19 + TypeScript app + optional Express backend (server/). Firebase handles auth and data, Gemini Live API handles the AI voice pipeline. The backend server provides WhatsApp integration (Baileys + Cloud API) and web glance API; run separately with `npx tsx server/index.ts`.
 
 **Entry point:** `index.html` → `src/main.tsx` → `src/App.tsx`
 
-**`src/App.tsx`** (~1560 lines) is the monolithic main component. It contains ALL logic: auth flow, Firestore reads/writes, Gemini Live session management, audio pipeline, tool call handling, settings panel, camera feed, and transcript display. Edit with extreme care — there are no extracted hooks or services.
+**`src/App.tsx`** (~200 lines) is the slim orchestrator: auth state, Firebase init, user routing (EntryFlow → AuthPage or BeatriceAgent). All business logic is extracted to separate modules.
 
 **Key source files:**
 | File | Purpose |
 |---|---|
-| `src/App.tsx` | Entire application component |
+| `src/App.tsx` | Root orchestrator: auth state, user routing |
+| `src/constants.ts` | Shared constants (`LANGUAGES` array) |
+| `src/components/BeatriceAgent.tsx` | Main AI voice agent: Gemini Live session, audio pipeline, tool calling, settings panel, camera feed, document generation |
+| `src/components/AuthPage.tsx` | Auth UI: sign in / register / reset password forms, Google OAuth trigger via props |
+| `src/components/EntryFlow.tsx` | Splash → Onboarding flow + `isGoogleLinked` helper |
 | `src/firebase.ts` | Firebase init + `handleFirestoreError()` helper |
 | `src/lib/audio.ts` | `AudioStreamer` (TTS playback) and `AudioRecorder` (mic capture) |
-| `src/components/KaraokeTranscript.tsx` | Animated word-by-word transcript |
+| `src/components/UnifiedTranscript.tsx` | Animated word-by-word transcript |
 | `src/index.css` | Single `@import "tailwindcss";` line (Tailwind v4) |
 | `vite.config.ts` | Path alias `@` → `.`, Tailwind v4 plugin, env injection |
+| `src/components/WhatsAppSettings.tsx` | WhatsApp pairing UI, permission toggles, Firestore sync |
+| `src/lib/whatsappClient.ts` | WhatsApp backend API client (pair, send, status, contacts) |
+| `src/lib/audio.ts` | `AudioStreamer` (TTS playback) and `AudioRecorder` (mic capture) |
+| `src/lib/supabase.ts` | Supabase client setup + error handling |
+| `src/lib/supabaseStorage.ts` | Avatar + knowledge file upload/list/delete to Supabase Storage |
+| `src/firebase.ts` | Firebase init + `handleFirestoreError()` helper |
+| `server/index.ts` | Express backend: WhatsApp + web glance + health API routes |
+| `server/whatsapp.ts` | WhatsAppManager: Baileys / Cloud API session lifecycle |
+| `server/whatsapp-tools.ts` | Permission-gated WhatsApp tool handlers |
 
 ## Firebase + Firestore
 
@@ -45,9 +61,13 @@ Single-package Vite + React 19 + TypeScript app. No monorepo. No backend server 
 
 ## Gemini Live API
 
-- SDK: `@google/genai` (`^1.29.0`), model: `gemini-3.1-flash-live-preview`.
-- Audio modalities are used for real-time voice; tool calls (`toolCall` in `onmessage` callback) drive Google Services integration (Gmail, Calendar, Tasks, YouTube, Drive).
-- The voice personality prompt (`VOICE_PERSONALITY_PROMPT`) is a ~130-line constant in `App.tsx`. Do not alter it casually — it defines the entire agent persona.
+- SDK: `@google/genai` (`^1.29.0`), model: `gemini-2.5-flash-native-audio-preview-09-2025`.
+- Audio modalities are used for real-time bidirectional voice; tool calls (`functionCall` in `onmessage` callback) drive WhatsApp, Google Services (Gmail, Calendar, Tasks, Contacts), web search, document generation, camera, and phone dialing.
+- 17 tools declared. Execution is a single switch statement inside the `onmessage` closure.
+- The voice personality prompt (`VOICE_PERSONALITY_PROMPT`) is a ~350-line constant in `src/components/BeatriceAgent.tsx`. Do not alter it casually — it defines the entire agent persona.
+- Permissions (10 boolean toggles, all default `false`) are injected into the system instruction at session start. Changes require session reconnect.
+- Document generation uses a separate non-voice Gemini session (`gemini-2.5-flash`, non-streaming).
+- Audio output is PCM16 mono 24kHz, streamed via `AudioStreamer` (decode → queue → schedule → play).
 
 ## UI / Styling
 

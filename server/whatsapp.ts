@@ -49,6 +49,8 @@ export interface WaChatSummary {
 export interface WaContactSummary {
   id: string;
   name: string;
+  notify?: string;
+  verifiedName?: string;
   number: string;
 }
 
@@ -443,6 +445,20 @@ export class WhatsAppManager {
             isMedia: !!msg.message?.imageMessage || !!msg.message?.videoMessage || !!msg.message?.documentMessage,
           };
           entry.recentMessages.unshift(record);
+
+          // Capture public profile name (pushName) from incoming messages to pair it with the JID
+          if (chatId && chatId.endsWith('@s.whatsapp.net') && msg.pushName) {
+            const existing = entry.contacts[chatId];
+            const savedName = existing?.name && existing.name !== chatId ? existing.name : '';
+            const notifyName = msg.pushName || existing?.notify || '';
+            entry.contacts[chatId] = {
+              id: chatId,
+              name: savedName || notifyName || chatId,
+              notify: notifyName || undefined,
+              verifiedName: existing?.verifiedName || undefined,
+              number: jidNumber(chatId),
+            };
+          }
         }
         entry.recentMessages = entry.recentMessages.slice(0, 250);
       });
@@ -453,14 +469,24 @@ export class WhatsAppManager {
         for (const contact of contacts || []) {
           const id = contact.id || contact.jid;
           if (!id || !String(id).endsWith('@s.whatsapp.net')) continue;
+          
+          const existing = entry.contacts[id];
+          const savedName = contact.name || (existing?.name && existing.name !== id ? existing.name : '');
+          const notifyName = contact.notify || contact.verifiedName || existing?.notify || '';
+
           entry.contacts[id] = {
             id,
-            name: contact.name || contact.notify || contact.verifiedName || entry.contacts[id]?.name || id,
+            name: savedName || notifyName || id,
+            notify: notifyName || undefined,
+            verifiedName: contact.verifiedName || existing?.verifiedName || undefined,
             number: jidNumber(id),
           };
         }
       };
 
+      sock.ev.on('messaging-history.set', ({ contacts }: any) => {
+        updateContacts(contacts || []);
+      });
       sock.ev.on('contacts.upsert', updateContacts);
       sock.ev.on('contacts.update', updateContacts);
 
@@ -551,7 +577,9 @@ export class WhatsAppManager {
     const config = this.readAdminConfig(userId);
     if (config.provider !== 'cloud_api' || !config.accessToken || !config.phoneNumberId) return null;
 
-    const recipient = cleanPhoneNumber(to, config.defaultCountryCode);
+    const resolvedJid = this.resolveContactJid(userId, to);
+    const resolvedNumber = jidNumber(resolvedJid);
+    const recipient = cleanPhoneNumber(resolvedNumber || to, config.defaultCountryCode);
     if (!recipient) throw new Error('Recipient phone number required');
 
     const version = config.apiVersion || 'v23.0';
@@ -688,6 +716,61 @@ export class WhatsAppManager {
     return Object.values(entry.contacts)
       .filter(contact => contact.id.endsWith('@s.whatsapp.net'))
       .slice(0, Math.min(limit, 500));
+  }
+
+  resolveContactJid(userId: string, nameOrNumberOrJid: string): string {
+    const input = String(nameOrNumberOrJid || '').trim();
+    if (!input) return '';
+
+    // If it's already a JID, return it
+    if (input.endsWith('@s.whatsapp.net') || input.endsWith('@g.us') || input.endsWith('@broadcast')) {
+      return input;
+    }
+
+    // If it contains only digits (with optional leading +), it's a number
+    const isNumber = /^\+?\d+$/.test(input);
+    if (isNumber) {
+      return toWhatsAppJid(input);
+    }
+
+    // Otherwise, search contacts by name
+    const entry = this.sessions.get(userId);
+    if (entry?.contacts) {
+      const searchName = input.toLowerCase();
+
+      // 1. Try exact match on saved phone book name
+      let match = Object.values(entry.contacts).find(
+        c => c.name && c.name.toLowerCase() === searchName
+      );
+      if (match) return match.id;
+
+      // 2. Try exact match on notify (WhatsApp public profile pushname)
+      match = Object.values(entry.contacts).find(
+        c => c.notify && c.notify.toLowerCase() === searchName
+      );
+      if (match) return match.id;
+
+      // 3. Try exact match on verified business name
+      match = Object.values(entry.contacts).find(
+        c => c.verifiedName && c.verifiedName.toLowerCase() === searchName
+      );
+      if (match) return match.id;
+
+      // 4. Try partial case-insensitive match on saved name
+      match = Object.values(entry.contacts).find(
+        c => c.name && c.name.toLowerCase().includes(searchName)
+      );
+      if (match) return match.id;
+
+      // 5. Try partial case-insensitive match on notify name
+      match = Object.values(entry.contacts).find(
+        c => c.notify && c.notify.toLowerCase().includes(searchName)
+      );
+      if (match) return match.id;
+    }
+
+    // Fallback: clean digits anyway
+    return toWhatsAppJid(input);
   }
 
   async getGroups(userId: string): Promise<WaChatSummary[]> {

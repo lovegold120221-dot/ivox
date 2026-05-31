@@ -3,6 +3,8 @@ import express from 'express';
 import cors from 'cors';
 import { WhatsAppManager } from './whatsapp';
 import * as waTools from './whatsapp-tools';
+import { runPlaywrightAction } from './playwright-tool';
+import { duffelManager } from './duffel';
 
 const app = express();
 const PORT = process.env.SANDBOX_PORT ? parseInt(process.env.SANDBOX_PORT) : 4200;
@@ -77,6 +79,50 @@ app.post('/api/web/glance', async (req, res) => {
   } catch (err: any) {
     console.error('Web glance error:', err);
     res.status(500).json({ error: err.message || 'Web glance failed' });
+  }
+});
+
+app.post('/api/playwright/action', async (req, res) => {
+  try {
+    const result = await runPlaywrightAction(req.body || {});
+    res.json(result);
+  } catch (err: any) {
+    console.error('Playwright action error:', err);
+    res.status(500).json({
+      error: {
+        code: 'PLAYWRIGHT_ACTION_FAILED',
+        message: err?.message || 'Playwright action failed',
+      },
+    });
+  }
+});
+
+// ── VIES VAT Proxy ──
+app.post('/api/vies/validate', async (req, res) => {
+  try {
+    const { countryCode, vatNumber } = req.body;
+    if (!countryCode || !vatNumber) {
+      res.status(400).json({ error: 'countryCode and vatNumber required' });
+      return;
+    }
+
+    const response = await fetch('https://ec.europa.eu/taxation_customs/vies/rest-api/check-vat-number', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ countryCode, vatNumber }),
+      signal: AbortSignal.timeout(8000),
+    });
+
+    if (!response.ok) {
+      res.status(502).json({ error: `VIES API failed with status ${response.status}` });
+      return;
+    }
+
+    const data = await response.json();
+    res.json(data);
+  } catch (err: any) {
+    console.error('VIES validation error:', err);
+    res.status(500).json({ error: err.message || 'VIES validation failed' });
   }
 });
 
@@ -211,6 +257,26 @@ app.post('/api/whatsapp/admin/test-message', async (req, res) => {
     res.json(result);
   } catch (err: any) {
     res.status(500).json({ error: err.message || 'Failed to send test message' });
+  }
+});
+
+// ── Duffel Flight Booking Routes ──
+
+app.post('/api/flights/search', async (req, res) => {
+  try {
+    const result = await duffelManager.searchFlights(req.body);
+    res.json(result);
+  } catch (err: any) {
+    res.status(500).json({ error: err.message || 'Flight search failed' });
+  }
+});
+
+app.post('/api/flights/book', async (req, res) => {
+  try {
+    const result = await duffelManager.bookFlight(req.body);
+    res.json(result);
+  } catch (err: any) {
+    res.status(500).json({ error: err.message || 'Flight booking failed' });
   }
 });
 

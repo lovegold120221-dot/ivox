@@ -32,7 +32,7 @@ flowchart TB
     end
 
     subgraph AI["AI Layer"]
-        GL["Gemini Live API<br/>gemini-3.1-flash-live-preview<br/>@google/genai SDK"]
+        GL["Gemini Live API<br/>gemini-2.5-flash-native-audio-preview<br/>@google/genai SDK"]
         VP["VOICE_PERSONALITY_PROMPT<br/>~130 lines defining Beatrice"]
     end
 
