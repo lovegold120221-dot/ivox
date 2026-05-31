@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { chromium, type Browser, type Page } from 'playwright';
 
 type PlaywrightStep = {

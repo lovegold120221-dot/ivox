@@ -150,14 +150,17 @@ export function AuthPage({ onGoogleToken, onLogin }: AuthPageProps) {
       </div>
 
       <div className="w-full max-w-[400px] z-10 flex flex-col items-center">
-        {/* Minimal header */}
-        <div className="flex items-center gap-3 mb-10">
-          <div className="w-8 h-8 rounded-full bg-gradient-to-br from-[#d0a78b]/20 to-amber-900/30 p-[1px]">
-            <div className="w-full h-full rounded-full bg-[#080808] flex items-center justify-center border border-[#d0a78b]/10 overflow-hidden p-1.5">
-              <img src="https://eburon.ai/icon-eburon.svg" alt="" className="w-full h-full object-contain" />
+        {/* Large premium logo */}
+        <div className="flex flex-col items-center gap-5 mb-10 text-center">
+          <div className="w-24 h-24 rounded-full bg-gradient-to-br from-[#d0a78b]/30 to-amber-900/40 p-[2px] shadow-[0_0_32px_rgba(208,167,139,0.15)]">
+            <div className="w-full h-full rounded-full bg-[#080808] flex items-center justify-center border border-[#d0a78b]/20 overflow-hidden p-5">
+              <img src="/icon-eburon.svg" alt="Beatrice" className="w-full h-full object-contain" />
             </div>
           </div>
-          <span className="text-sm font-light tracking-[0.15em] text-white/40 uppercase font-['SF_Pro_Display',system-ui,sans-serif]">Beatrice</span>
+          <div className="flex flex-col items-center gap-1">
+            <span className="text-2xl font-light tracking-[0.2em] text-white/90 uppercase font-['SF_Pro_Display',system-ui,sans-serif]">Beatrice</span>
+            <span className="text-[9px] text-[#d0a78b]/50 tracking-[0.3em] uppercase font-['SF_Pro_Text',system-ui,sans-serif] font-medium">Powered by Eburon AI</span>
+          </div>
         </div>
 
         <AnimatePresence mode="wait">
@@ -291,6 +294,8 @@ export function AuthPage({ onGoogleToken, onLogin }: AuthPageProps) {
                       value={authLanguage}
                       onChange={e => { setAuthLanguage(e.target.value); try { localStorage.setItem('beatrice_language', e.target.value); } catch {} }}
                       className="w-full bg-transparent text-white/60 placeholder-white/25 text-sm px-4 py-3.5 outline-none appearance-none cursor-pointer font-['SF_Pro_Text',system-ui,sans-serif]"
+                      title="Select preferred language"
+                      aria-label="Select preferred language"
                     >
                       {LANGUAGES.map(l => (
                         <option key={l.code} value={l.code}>{l.label}</option>

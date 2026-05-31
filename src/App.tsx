@@ -16,6 +16,8 @@ import { AuthPage } from './components/AuthPage';
 import { BeatriceAgent } from './components/BeatriceAgent';
 import { AdminPortal } from './components/AdminPortal';
 import { LocationPermissionPage } from './components/LocationPermissionPage';
+import { SettingsPage } from './components/SettingsPage';
+import { ProfilePage } from './components/ProfilePage';
 
 export default function App() {
   const [user, setUser] = useState<User | null>(null);
@@ -28,6 +30,17 @@ export default function App() {
   const [authLanguage, setAuthLanguage] = useState(() => {
     try { return localStorage.getItem('beatrice_language') || 'en'; } catch { return 'en'; }
   });
+  const [currentPath, setCurrentPath] = useState(() => {
+    return typeof window !== 'undefined' ? window.location.pathname.replace(/\/+$/, '') : '/';
+  });
+
+  useEffect(() => {
+    const handlePopState = () => {
+      setCurrentPath(window.location.pathname.replace(/\/+$/, '') || '/');
+    };
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
 
   const storeToken = useCallback(async (token: string, uid: string, refreshToken?: string) => {
     setGoogleToken(token);
@@ -185,15 +198,40 @@ export default function App() {
     );
   }
 
-  const isAdminPortal = typeof window !== 'undefined'
-    && window.location.pathname.replace(/\/+$/, '') === '/adminportal';
-
-  if (isAdminPortal) {
+  if (currentPath === '/adminportal') {
     return (
       <AdminPortal
         user={user}
-        onBack={() => { window.location.href = '/'; }}
+        onBack={() => {
+          window.history.pushState(null, '', '/');
+          window.dispatchEvent(new PopStateEvent('popstate'));
+        }}
         onLogout={handleLogout}
+      />
+    );
+  }
+
+  if (currentPath === '/settings') {
+    return (
+      <SettingsPage
+        user={user}
+        googleToken={googleToken}
+        onLogin={handleLogin}
+        onBack={() => {
+          window.history.pushState(null, '', '/');
+          window.dispatchEvent(new PopStateEvent('popstate'));
+        }}
+      />
+    );
+  }
+
+  if (currentPath === '/profile') {
+    return (
+      <ProfilePage
+        onClose={() => {
+          window.history.pushState(null, '', '/');
+          window.dispatchEvent(new PopStateEvent('popstate'));
+        }}
       />
     );
   }

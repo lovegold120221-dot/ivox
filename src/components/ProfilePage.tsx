@@ -1,8 +1,9 @@
 import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Loader2, Power, Check, Settings, X, Save, Activity, Video, MessageSquare, Globe, User, Mail, FileText, AlertCircle, LogOut, Upload, Trash2, Folder, Download, ExternalLink, Image } from 'lucide-react';
+import { Loader2, Power, Check, Settings, X, Save, Activity, Video, MessageSquare, Globe, User, Mail, FileText, AlertCircle, LogOut, Upload, Trash2, Folder, Download, ExternalLink, Image, ArrowLeft } from 'lucide-react';
 import { auth } from '../firebase';
 import { signOut } from 'firebase/auth';
+import { supabase } from '../lib/supabase';
 import { db } from '../lib/db';
 import {
   uploadAvatar,
@@ -163,20 +164,6 @@ const VOICE_ALIASES = [
 
 interface ProfilePageProps {
   onClose: () => void;
-  personaName: string;
-  setPersonaName: (v: string) => void;
-  customPrompt: string;
-  setCustomPrompt: (v: string) => void;
-  userTitle: string;
-  setUserTitle: (v: string) => void;
-  contextSize: number;
-  setContextSize: (v: number) => void;
-  authLanguage: string;
-  onSetLanguage: (v: string) => void;
-  selectedVoice: string;
-  setSelectedVoice: (v: string) => void;
-  saveSettings: (callbacks?: { onSuccess?: () => void; onError?: (msg: string) => void }) => Promise<void>;
-  isSaving: boolean;
 }
 
 const LS_KEY = 'beatrice_knowledge_domains';
@@ -197,21 +184,7 @@ function saveLocalDomains(domains: string[]) {
 }
 
 export function ProfilePage({ 
-  onClose,
-  personaName,
-  setPersonaName,
-  customPrompt,
-  setCustomPrompt,
-  userTitle,
-  setUserTitle,
-  contextSize,
-  setContextSize,
-  authLanguage,
-  onSetLanguage,
-  selectedVoice,
-  setSelectedVoice,
-  saveSettings,
-  isSaving
+  onClose
 }: ProfilePageProps) {
   const user = auth.currentUser!;
   const isGoogleConnected = user.providerData.some(p => p.providerId === 'google.com');
@@ -232,6 +205,17 @@ export function ProfilePage({
   const [workspaceOutputs, setWorkspaceOutputs] = useState<WorkspaceOutput[]>([]);
   const [loadingWorkspace, setLoadingWorkspace] = useState(false);
   const [deletingWorkspaceId, setDeletingWorkspaceId] = useState<string | null>(null);
+
+  // Internal standalone settings states
+  const [personaName, setPersonaName] = useState('Beatrice');
+  const [customPrompt, setCustomPrompt] = useState('');
+  const [userTitle, setUserTitle] = useState('Boss');
+  const [contextSize, setContextSize] = useState(20);
+  const [authLanguage, setAuthLanguage] = useState(() => {
+    try { return localStorage.getItem('beatrice_language') || 'en'; } catch { return 'en'; }
+  });
+  const [selectedVoice, setSelectedVoice] = useState('Aoede');
+  const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
     loadProfile();
@@ -264,14 +248,57 @@ export function ProfilePage({
 
   const loadProfile = async () => {
     try {
-      const settings = await db.settings.get(user.uid);
-      if (settings) {
-        if (settings.avatarUrl) setAvatarUrl(settings.avatarUrl);
-        if (settings.knowledgeDomains) {
-          setDomains(settings.knowledgeDomains);
-          saveLocalDomains(settings.knowledgeDomains);
+      // Load from local Dexie DB first
+      const local = await db.settings.get(user.uid);
+      if (local) {
+        if (local.personaName) setPersonaName(local.personaName);
+        if (local.customPrompt) setCustomPrompt(local.customPrompt);
+        if (local.userTitle) setUserTitle(local.userTitle);
+        if (local.contextSize) setContextSize(local.contextSize);
+        if (local.language) setAuthLanguage(local.language);
+        if (local.selectedVoice) setSelectedVoice(local.selectedVoice);
+        if (local.avatarUrl) setAvatarUrl(local.avatarUrl);
+        if (local.knowledgeDomains) {
+          setDomains(local.knowledgeDomains);
+          saveLocalDomains(local.knowledgeDomains);
         }
       }
+
+      // Load from Supabase to sync
+      const { data: settings } = await supabase
+        .from('user_settings')
+        .select('avatar_url, knowledge_domains, persona_name, custom_prompt, user_title, context_size, selected_voice, language')
+        .eq('user_id', user.uid)
+        .maybeSingle();
+
+      if (settings) {
+        if (settings.avatar_url) setAvatarUrl(settings.avatar_url);
+        if (settings.knowledge_domains) {
+          setDomains(settings.knowledge_domains);
+          saveLocalDomains(settings.knowledge_domains);
+        }
+        if (settings.persona_name) setPersonaName(settings.persona_name);
+        if (settings.custom_prompt) setCustomPrompt(settings.custom_prompt);
+        if (settings.user_title) setUserTitle(settings.user_title);
+        if (settings.context_size) setContextSize(settings.context_size);
+        if (settings.language) setAuthLanguage(settings.language);
+        if (settings.selected_voice) setSelectedVoice(settings.selected_voice);
+
+        // Sync to Dexie
+        const localData = await db.settings.get(user.uid) || { userId: user.uid };
+        await db.settings.put({
+          ...localData,
+          avatarUrl: settings.avatar_url || localData.avatarUrl,
+          knowledgeDomains: settings.knowledge_domains || localData.knowledgeDomains,
+          personaName: settings.persona_name || localData.personaName,
+          customPrompt: settings.custom_prompt || localData.customPrompt,
+          userTitle: settings.user_title || localData.userTitle,
+          contextSize: settings.context_size || localData.contextSize,
+          language: settings.language || localData.language,
+          selectedVoice: settings.selected_voice || localData.selectedVoice,
+        });
+      }
+
       const files = await listKnowledgeFiles(user.uid);
       setKnowledgeFiles(files);
     } catch (e) {
@@ -375,25 +402,81 @@ export function ProfilePage({
     if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
     return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
   };
+  const handleSaveSettings = async () => {
+    setIsSaving(true);
+    setError(null);
+    setSuccess(null);
+
+    try {
+      // Save to local Dexie DB
+      const local = await db.settings.get(user.uid) || { userId: user.uid };
+      await db.settings.put({
+        ...local,
+        personaName,
+        customPrompt,
+        selectedVoice,
+        contextSize,
+        userTitle,
+        language: authLanguage,
+        avatarUrl: avatarUrl || undefined,
+        updatedAt: new Date().toISOString(),
+      });
+
+      // Save to Supabase
+      let sbError = null;
+      try {
+        const { error } = await supabase.from('user_settings').upsert({
+          user_id: user.uid,
+          persona_name: personaName,
+          custom_prompt: customPrompt,
+          selected_voice: selectedVoice,
+          context_size: contextSize,
+          user_title: userTitle,
+          language: authLanguage,
+          avatar_url: avatarUrl,
+          updated_at: new Date().toISOString(),
+        });
+        sbError = error;
+      } catch (e) {
+        console.warn('Supabase upsert failed, possibly missing columns. Falling back to local storage...', e);
+      }
+
+      if (sbError) {
+        console.warn('Supabase upsert returned error:', sbError);
+      }
+
+      try { localStorage.setItem('beatrice_userTitle', userTitle); } catch {}
+      try { localStorage.setItem('beatrice_language', authLanguage); } catch {}
+
+      setSuccess('Profile settings successfully saved.');
+      setTimeout(() => {
+        setSuccess(null);
+        onClose();
+      }, 1500);
+    } catch (e: any) {
+      const msg = e instanceof Error ? e.message : 'Failed to save settings';
+      setError(msg);
+      setTimeout(() => setError(null), 4000);
+    } finally {
+      setIsSaving(false);
+    }
+  };
 
   return (
-    <motion.div
-      initial={{ x: '100%' }}
-      animate={{ x: 0 }}
-      exit={{ x: '100%' }}
-      transition={{ type: "spring", damping: 26, stiffness: 220 }}
-      className="fixed inset-0 z-50 bg-[#050505] flex flex-col h-screen w-screen overflow-hidden"
-    >
+    <div className="min-h-screen bg-[#050505] text-white flex flex-col select-none relative">
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,rgba(208,167,139,0.02),transparent_75%)] pointer-events-none z-0" />
+      
       <header className="sticky top-0 w-full bg-black/80 backdrop-blur-2xl border-b border-white/[0.04] px-4 py-3 flex items-center justify-between z-10 shrink-0">
-        <div className="w-16" />
-        <h1 className="text-base font-['SF_Pro_Display',system-ui,sans-serif] font-semibold tracking-tight text-white">Profile</h1>
         <button
           onClick={onClose}
-          className="w-16 text-right text-sm font-['SF_Pro_Text',system-ui,sans-serif] font-semibold text-[#d0a78b] hover:text-white transition-colors active:scale-95"
-          aria-label="Done"
+          className="flex items-center gap-1.5 text-sm font-semibold text-[#d0a78b] hover:text-white transition-colors active:scale-95 cursor-pointer"
+          aria-label="Back"
         >
-          Done
+          <ArrowLeft className="w-4 h-4" />
+          <span>Back</span>
         </button>
+        <h1 className="text-base font-semibold tracking-wide text-white">Profile Settings</h1>
+        <div className="w-16" />
       </header>
 
       <div className="flex-1 overflow-y-auto px-4 py-6 pb-20 w-full max-w-lg mx-auto space-y-8">
@@ -418,9 +501,9 @@ export function ProfilePage({
         </AnimatePresence>
 
         {/* Account Section */}
-        <section>
-          <h2 className="text-[13px] uppercase tracking-wide text-zinc-500 font-medium px-4 mb-2">Account</h2>
-          <div className="bg-[#1C1C1E] rounded-[20px] overflow-hidden">
+        <section className="space-y-3">
+          <h2 className="text-[11px] font-['SF_Pro_Text',system-ui,sans-serif] font-bold tracking-[0.2em] uppercase text-white/40 mb-3 px-1">Account</h2>
+          <div className="bg-white/[0.02] backdrop-blur-md border border-white/[0.04] rounded-3xl shadow-[0_8px_32px_rgba(0,0,0,0.4)] overflow-hidden transition-all duration-300 hover:border-white/[0.07] hover:bg-white/[0.03]">
             <div className="p-4 flex items-center gap-4">
               <div className="relative group shrink-0">
                 <div className="w-[72px] h-[72px] rounded-full bg-zinc-800 overflow-hidden border border-white/10">
@@ -468,11 +551,11 @@ export function ProfilePage({
         </section>
 
         {/* Knowledge Base Section */}
-        <section>
-          <div className="px-4 mb-2 flex items-baseline justify-between">
-            <h2 className="text-[13px] uppercase tracking-wide text-zinc-500 font-medium">Knowledge Base</h2>
+        <section className="space-y-3">
+          <div className="px-1 mb-3 flex items-baseline justify-between">
+            <h2 className="text-[11px] font-['SF_Pro_Text',system-ui,sans-serif] font-bold tracking-[0.2em] uppercase text-white/40">Knowledge Base</h2>
           </div>
-          <div className="bg-[#1C1C1E] rounded-[20px] overflow-hidden">
+          <div className="bg-white/[0.02] backdrop-blur-md border border-white/[0.04] rounded-3xl shadow-[0_8px_32px_rgba(0,0,0,0.4)] overflow-hidden transition-all duration-300 hover:border-white/[0.07] hover:bg-white/[0.03]">
             <div 
               onClick={() => !uploadingFile && knowledgeInputRef.current?.click()}
               className="p-4 border-b border-white/5 flex items-center justify-between cursor-pointer active:bg-white/5 transition-colors"
@@ -524,11 +607,11 @@ export function ProfilePage({
         </section>
 
         {/* Domains Section */}
-        <section>
-          <div className="px-4 mb-2 flex items-baseline justify-between">
-            <h2 className="text-[13px] uppercase tracking-wide text-zinc-500 font-medium">URL Domains</h2>
+        <section className="space-y-3">
+          <div className="px-1 mb-3 flex items-baseline justify-between">
+            <h2 className="text-[11px] font-['SF_Pro_Text',system-ui,sans-serif] font-bold tracking-[0.2em] uppercase text-white/40">URL Domains</h2>
           </div>
-          <div className="bg-[#1C1C1E] rounded-[20px] overflow-hidden">
+          <div className="bg-white/[0.02] backdrop-blur-md border border-white/[0.04] rounded-3xl shadow-[0_8px_32px_rgba(0,0,0,0.4)] overflow-hidden transition-all duration-300 hover:border-white/[0.07] hover:bg-white/[0.03]">
             <div className="p-4 border-b border-white/5 flex gap-2 items-center">
               <input
                 type="text"
@@ -581,12 +664,12 @@ export function ProfilePage({
         </section>
 
         {/* Workspace Section */}
-        <section>
-          <div className="px-4 mb-2 flex items-baseline justify-between">
-            <h2 className="text-[13px] uppercase tracking-wide text-zinc-500 font-medium">Workspace</h2>
+        <section className="space-y-3">
+          <div className="px-1 mb-3 flex items-baseline justify-between">
+            <h2 className="text-[11px] font-['SF_Pro_Text',system-ui,sans-serif] font-bold tracking-[0.2em] uppercase text-white/40">Workspace</h2>
             <span className="text-[11px] text-zinc-600">auto-saved locally · synced to Drive</span>
           </div>
-          <div className="bg-[#1C1C1E] rounded-[20px] overflow-hidden">
+          <div className="bg-white/[0.02] backdrop-blur-md border border-white/[0.04] rounded-3xl shadow-[0_8px_32px_rgba(0,0,0,0.4)] overflow-hidden transition-all duration-300 hover:border-white/[0.07] hover:bg-white/[0.03]">
             {loadingWorkspace ? (
               <div className="p-8 flex items-center justify-center">
                 <Loader2 className="w-5 h-5 animate-spin text-zinc-500" />
@@ -619,14 +702,14 @@ export function ProfilePage({
                       </p>
                       {w.driveLink && (
                         <a
-                          href={w.driveLink}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-[11px] text-[#d0a78b] hover:underline inline-flex items-center gap-1 mt-0.5"
-                          onClick={e => e.stopPropagation()}
+                           href={w.driveLink}
+                           target="_blank"
+                           rel="noopener noreferrer"
+                           className="text-[11px] text-[#d0a78b] hover:underline inline-flex items-center gap-1 mt-0.5"
+                           onClick={e => e.stopPropagation()}
                         >
-                          <ExternalLink className="w-3 h-3" />
-                          Drive
+                           <ExternalLink className="w-3 h-3" />
+                           Drive
                         </a>
                       )}
                     </div>
@@ -669,9 +752,9 @@ export function ProfilePage({
         </section>
 
         {/* Persona Settings */}
-        <section>
-          <h2 className="text-[13px] uppercase tracking-wide text-zinc-500 font-medium px-4 mb-2">Persona Configuration</h2>
-          <div className="bg-[#1C1C1E] rounded-[20px] overflow-hidden divide-y divide-white/5">
+        <section className="space-y-3">
+          <h2 className="text-[11px] font-['SF_Pro_Text',system-ui,sans-serif] font-bold tracking-[0.2em] uppercase text-white/40 mb-3 px-1">Persona Configuration</h2>
+          <div className="bg-white/[0.02] backdrop-blur-md border border-white/[0.04] rounded-3xl shadow-[0_8px_32px_rgba(0,0,0,0.4)] overflow-hidden transition-all duration-300 hover:border-white/[0.07] hover:bg-white/[0.03] divide-y divide-white/5">
             <div className="p-4 flex flex-col gap-1">
               <label className="text-[13px] text-zinc-500">Persona Name</label>
               <input
@@ -723,15 +806,18 @@ export function ProfilePage({
         </section>
 
         {/* Language & Voice */}
-        <section>
-          <h2 className="text-[13px] uppercase tracking-wide text-zinc-500 font-medium px-4 mb-2">Speech & Language</h2>
-          <div className="bg-[#1C1C1E] rounded-[20px] overflow-hidden divide-y divide-white/5">
+        <section className="space-y-3">
+          <h2 className="text-[11px] font-['SF_Pro_Text',system-ui,sans-serif] font-bold tracking-[0.2em] uppercase text-white/40 mb-3 px-1">Speech & Language</h2>
+          <div className="bg-white/[0.02] backdrop-blur-md border border-white/[0.04] rounded-3xl shadow-[0_8px_32px_rgba(0,0,0,0.4)] overflow-hidden transition-all duration-300 hover:border-white/[0.07] hover:bg-white/[0.03] divide-y divide-white/5">
             <div className="p-4 flex items-center justify-between">
               <label htmlFor="language-select" className="text-[15px] text-white">Language</label>
               <select
                 id="language-select"
                 value={authLanguage}
-                onChange={(e) => { onSetLanguage(e.target.value); try { localStorage.setItem('beatrice_language', e.target.value); } catch {} }}
+                onChange={(e) => {
+                  setAuthLanguage(e.target.value);
+                  try { localStorage.setItem('beatrice_language', e.target.value); } catch {}
+                }}
                 className="bg-transparent text-[15px] text-zinc-400 outline-none text-right cursor-pointer"
                 aria-label="Select Language"
                 title="Select Language"
@@ -761,19 +847,7 @@ export function ProfilePage({
 
         <section className="space-y-3">
           <button
-            onClick={() => saveSettings({
-              onSuccess: () => {
-                setSuccess('Settings saved successfully');
-                setTimeout(() => {
-                  setSuccess(null);
-                  onClose();
-                }, 1500);
-              },
-              onError: (msg) => {
-                setError(msg);
-                setTimeout(() => setError(null), 4000);
-              }
-            })}
+            onClick={handleSaveSettings}
             disabled={isSaving}
             className="w-full p-4 bg-[#d0a78b] rounded-[20px] text-center active:brightness-90 transition-all disabled:opacity-50 flex items-center justify-center gap-2 shadow-lg shadow-[#d0a78b]/20"
           >
@@ -783,7 +857,7 @@ export function ProfilePage({
         </section>
 
         {/* Logout Section */}
-        <section>
+        <section className="space-y-3">
           <button
             onClick={() => { signOut(auth); onClose(); }}
             className="w-full p-4 bg-white/[0.03] backdrop-blur-2xl border border-white/[0.06] rounded-[20px] text-center active:bg-white/[0.06] transition-all"
@@ -793,6 +867,6 @@ export function ProfilePage({
         </section>
 
       </div>
-    </motion.div>
+    </div>
   );
 }

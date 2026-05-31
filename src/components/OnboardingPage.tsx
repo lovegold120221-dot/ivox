@@ -9,11 +9,19 @@ const slides = [
   {
     glyph: (
       <svg viewBox="0 0 56 56" fill="none" className="w-full h-full">
-        <circle cx="28" cy="28" r="24" stroke="#d0a78b" strokeWidth="1.2" strokeOpacity={0.3} />
-        <circle cx="28" cy="28" r="16" stroke="#d0a78b" strokeWidth="1.5" strokeOpacity={0.15} fill="rgba(208,167,139,0.04)" />
-        <path d="M28 18v10l7 7" stroke="#d0a78b" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-        <circle cx="28" cy="28" r="3" fill="#d0a78b" opacity={0.6} />
-        <path d="M22 36h12M22 40h8" stroke="#d0a78b" strokeWidth="1.5" strokeLinecap="round" opacity={0.4} />
+        {/* Concentric voice ripples */}
+        <circle cx="28" cy="28" r="24" stroke="#d0a78b" strokeWidth="1" strokeOpacity={0.15} />
+        <circle cx="28" cy="28" r="18" stroke="#d0a78b" strokeWidth="1.2" strokeOpacity={0.3} fill="rgba(208,167,139,0.02)" />
+        
+        {/* Voice sound wave bars */}
+        <path d="M16 23v10" stroke="#d0a78b" strokeWidth="2.5" strokeLinecap="round" strokeOpacity={0.4} />
+        <path d="M22 17v22" stroke="#d0a78b" strokeWidth="2.5" strokeLinecap="round" strokeOpacity={0.6} />
+        <path d="M28 11v34" stroke="#d0a78b" strokeWidth="3.0" strokeLinecap="round" />
+        <path d="M34 17v22" stroke="#d0a78b" strokeWidth="2.5" strokeLinecap="round" strokeOpacity={0.6} />
+        <path d="M40 23v10" stroke="#d0a78b" strokeWidth="2.5" strokeLinecap="round" strokeOpacity={0.4} />
+        
+        {/* Ripple center core */}
+        <circle cx="28" cy="28" r="2.5" fill="#d0a78b" opacity={0.8} />
       </svg>
     ),
     title: 'Voice Intelligence',

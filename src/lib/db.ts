@@ -28,6 +28,9 @@ export interface UserSettings {
   userTitle?: string;
   language?: string;
   locationEnabled?: boolean;
+  latitude?: number;
+  longitude?: number;
+  timezone?: string;
 }
 
 export interface Session {

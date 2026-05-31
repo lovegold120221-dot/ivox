@@ -26,6 +26,7 @@ CREATE TABLE IF NOT EXISTS user_settings (
   whatsapp_permissions JSONB DEFAULT '{"send_messages":false,"read_chats":false,"access_contacts":false,"manage_contacts":false,"access_groups":false,"send_group_messages":false,"read_group_chats":false,"manage_media":false,"view_message_history":false}'::jsonb,
   whatsapp_paired BOOLEAN DEFAULT false,
   whatsapp_phone TEXT,
+  location_enabled BOOLEAN DEFAULT false,
   updated_at TIMESTAMPTZ DEFAULT now()
 );
 
@@ -54,6 +55,7 @@ ALTER TABLE user_settings ADD COLUMN IF NOT EXISTS knowledge_domains TEXT[] DEFA
 ALTER TABLE user_settings ADD COLUMN IF NOT EXISTS whatsapp_permissions JSONB DEFAULT '{"send_messages":false,"read_chats":false,"access_contacts":false,"manage_contacts":false,"access_groups":false,"send_group_messages":false,"read_group_chats":false,"manage_media":false,"view_message_history":false}'::jsonb;
 ALTER TABLE user_settings ADD COLUMN IF NOT EXISTS whatsapp_paired BOOLEAN DEFAULT false;
 ALTER TABLE user_settings ADD COLUMN IF NOT EXISTS whatsapp_phone TEXT;
+ALTER TABLE user_settings ADD COLUMN IF NOT EXISTS location_enabled BOOLEAN DEFAULT false;
 
 -- Add attachment columns to messages table (idempotent)
 ALTER TABLE messages ADD COLUMN IF NOT EXISTS attachment_url TEXT;
