@@ -12,6 +12,11 @@ import {
 import { Loader2, Check } from 'lucide-react';
 import { AnimatePresence, motion } from 'motion/react';
 import { LANGUAGES } from '../constants';
+import {
+  clearLocationRegistrationPending,
+  markLocationOnboardingPending,
+  markLocationRegistrationPending,
+} from '../lib/locationOnboarding';
 
 interface AuthPageProps {
   onGoogleToken: (token: string | null) => void;
@@ -81,12 +86,13 @@ export function AuthPage({ onGoogleToken, onLogin }: AuthPageProps) {
     setAuthError('');
     if (!authEmail || !authPassword) { setAuthError('Email and password required'); return; }
     if (authPassword.length < 6) { setAuthError('Password must be at least 6 characters'); return; }
+    let startedRegistration = false;
     try {
       if (authMode === 'register') {
-        try {
-          localStorage.setItem('beatrice_just_registered', 'true');
-        } catch {}
+        startedRegistration = true;
+        markLocationRegistrationPending();
         const cred = await createUserWithEmailAndPassword(auth, authEmail, authPassword);
+        markLocationOnboardingPending(cred.user.uid);
         if (authDisplayName.trim()) {
           await updateProfile(cred.user, { displayName: authDisplayName.trim() });
         }
@@ -102,6 +108,7 @@ export function AuthPage({ onGoogleToken, onLogin }: AuthPageProps) {
         : err.code === 'auth/too-many-requests' ? 'Too many attempts. Try later.'
         : err.message || 'Authentication failed';
       setAuthError(msg);
+      if (startedRegistration) clearLocationRegistrationPending();
     }
   };
 

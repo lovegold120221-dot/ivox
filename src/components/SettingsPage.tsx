@@ -32,7 +32,7 @@ export function SettingsPage({
     }
   });
   const [locationEnabled, setLocationEnabled] = useState(() => {
-    try { return localStorage.getItem('beatrice_location_enabled') !== 'false'; } catch { return true; }
+    try { return localStorage.getItem('beatrice_location_enabled') === 'true'; } catch { return false; }
   });
   const [waPermissions, setWaPermissions] = useState<Record<string, boolean>>(createDefaultAgentPermissions);
 

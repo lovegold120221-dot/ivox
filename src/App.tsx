@@ -19,6 +19,11 @@ import { AdminPortal } from './components/AdminPortal';
 import { LocationPermissionPage } from './components/LocationPermissionPage';
 import { SettingsPage } from './components/SettingsPage';
 import { ProfilePage } from './components/ProfilePage';
+import {
+  markLocationOnboardingComplete,
+  markLocationOnboardingPending,
+  shouldShowLocationOnboarding,
+} from './lib/locationOnboarding';
 
 export default function App() {
   const [user, setUser] = useState<User | null>(null);
@@ -42,15 +47,12 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    if (user) {
-      try {
-        const justRegistered = localStorage.getItem('beatrice_just_registered') === 'true';
-        if (justRegistered) {
-          localStorage.removeItem('beatrice_just_registered');
-          setShowLocationStep(true);
-        }
-      } catch {}
+    if (!user) {
+      setShowLocationStep(false);
+      return;
     }
+
+    setShowLocationStep(shouldShowLocationOnboarding(user.uid));
   }, [user]);
 
   const storeToken = useCallback(async (token: string, uid: string, refreshToken?: string) => {
@@ -147,9 +149,8 @@ export default function App() {
         result = await signInWithPopup(auth, provider);
         const additionalInfo = getAdditionalUserInfo(result);
         if (additionalInfo?.isNewUser) {
-          try {
-            localStorage.setItem('beatrice_just_registered', 'true');
-          } catch {}
+          markLocationOnboardingPending(result.user.uid);
+          setShowLocationStep(true);
         }
       }
       const credential = GoogleAuthProvider.credentialFromResult(result);
@@ -210,7 +211,10 @@ export default function App() {
     return (
       <LocationPermissionPage
         userId={user.uid}
-        onComplete={() => setShowLocationStep(false)}
+        onComplete={() => {
+          markLocationOnboardingComplete(user.uid);
+          setShowLocationStep(false);
+        }}
       />
     );
   }
