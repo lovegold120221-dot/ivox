@@ -19,6 +19,7 @@ import { createLiveUserTurn, mergeTranscriptText, toLiveUserMessage, type LiveUs
 import { isGoogleLinked } from './EntryFlow';
 import { googleTools, googleTokenRequiredTools, additionalToolDeclarations } from '../lib/toolDeclarations';
 import { VOICE_PERSONALITY_PROMPT, GLOBAL_KNOWLEDGE_BASE, PERSONA_REINFORCEMENT, getEnv, getGeminiApiKey, escapeHtml, clampTemplateContent, extractHtmlArtifact } from '../lib/constants';
+import { createDefaultAgentPermissions } from '../lib/permissions';
 
 const ChatPage = lazy(() => import('./ChatPage').then(module => ({ default: module.ChatPage })));
 const VideoPage = lazy(() => import('./VideoPage').then(module => ({ default: module.VideoPage })));
@@ -458,34 +459,7 @@ export function BeatriceAgent({
   const [waQrCode, setWaQrCode] = useState<string | null>(null);
   const [waPhone, setWaPhone] = useState<string | null>(null);
   const [waPairing, setWaPairing] = useState(false);
-  const [waPermissions, setWaPermissions] = useState<Record<string, boolean>>({
-    send_messages: false,
-    read_chats: false,
-    access_contacts: false,
-    manage_contacts: false,
-    access_groups: false,
-    send_group_messages: false,
-    read_group_chats: false,
-    view_message_history: false,
-    make_calls: false,
-    make_whatsapp_calls: false,
-    generate_image: true,
-    create_document: true,
-    validate_vat_number: true,
-    check_train_route: true,
-    calculate_registration_tax: true,
-    check_tax_deadlines: true,
-    generate_peppol_invoice_xml: true,
-    gmail: true,
-    calendar: true,
-    tasks: true,
-    drive: true,
-    youtube: true,
-    playwright_action: true,
-    barcode_scanner: true,
-    search_flights: true,
-    book_flight: true,
-  });
+  const [waPermissions, setWaPermissions] = useState<Record<string, boolean>>(createDefaultAgentPermissions);
   const waPollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const breathLevel = useMemo(() => {
