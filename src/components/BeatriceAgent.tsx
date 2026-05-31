@@ -2905,7 +2905,9 @@ outputAudioTranscription: {},
                           historyContext: historyContextRef.current,
                         });
 
-                        const content = documentResult?.content || '';
+                        const content = (documentResult && typeof documentResult === 'object' && 'content' in documentResult) 
+                          ? (documentResult as { content: string }).content 
+                          : documentResult || '';
 
                         setGeneratedDocumentTask(generationTaskId, title, content, 'done');
 
