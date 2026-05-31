@@ -3,18 +3,24 @@
 ## Installation & Setup
 
 1. **Clone the repository:**
+
    ```bash
    git clone https://github.com/lovegold120221-dot/voxx.git
    cd voxx
    ```
+
 2. **Install dependencies:**
+
    ```bash
    npm install
    ```
+
 3. **Environment Variables:**
    Copy `.env.example` to `.env` and fill in the required values.
+
 4. **Run the Application:**
    To run both the Vite frontend and the backend API concurrently:
+
    ```bash
    npm run dev:full
    ```

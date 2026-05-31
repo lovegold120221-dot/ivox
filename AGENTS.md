@@ -2,7 +2,7 @@
 
 ## Commands
 
-```
+```bash
 npm run dev      # Start dev server on port 3000, binds 0.0.0.0
 npm run build    # Production build via Vite
 npm run lint     # Typecheck only (tsc --noEmit) — no ESLint, no Prettier
@@ -29,8 +29,9 @@ Single-package Vite + React 19 + TypeScript app + optional Express backend (serv
 **`src/App.tsx`** (~200 lines) is the slim orchestrator: auth state, Firebase init, user routing (EntryFlow → AuthPage or BeatriceAgent). All business logic is extracted to separate modules.
 
 **Key source files:**
+
 | File | Purpose |
-|---|---|
+| --- | --- |
 | `src/App.tsx` | Root orchestrator: auth state, user routing |
 | `src/constants.ts` | Shared constants (`LANGUAGES` array) |
 | `src/components/BeatriceAgent.tsx` | Main AI voice agent: Gemini Live session, audio pipeline, tool calling, settings panel, camera feed, document generation |
