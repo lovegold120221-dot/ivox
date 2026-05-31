@@ -2895,7 +2895,7 @@ outputAudioTranscription: {},
                         try {
                           setGeneratedDocumentTask(generationTaskId, title, '', 'working');
 
-                        const content = await generateDocumentWithGemini({
+                        const documentResult = await generateDocumentWithGemini({
                           title,
                           prompt,
                           templateName: args.templateName,
@@ -2904,6 +2904,8 @@ outputAudioTranscription: {},
                           personaName,
                           historyContext: historyContextRef.current,
                         });
+
+                        const content = documentResult?.content || '';
 
                         setGeneratedDocumentTask(generationTaskId, title, content, 'done');
 
