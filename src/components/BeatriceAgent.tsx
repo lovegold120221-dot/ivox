@@ -322,7 +322,7 @@ Produce one finished standalone file now.
   if (!artifact) {
     throw new Error('Failed to extract HTML artifact from response.');
   }
-  return artifact.content;
+  return artifact;
 };
 export function BeatriceAgent({
   user,
