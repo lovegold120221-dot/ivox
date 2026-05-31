@@ -1327,7 +1327,12 @@ export function BeatriceAgent({
           if (settingsData.whatsappPhone) setWaPhone(settingsData.whatsappPhone);
           if (settingsData.locationEnabled !== undefined) {
             setLocationEnabled(settingsData.locationEnabled);
-            try { localStorage.setItem('beatrice_location_enabled', String(settingsData.locationEnabled)); } catch {}
+            try { 
+              localStorage.setItem('beatrice_location_enabled', String(settingsData.locationEnabled));
+              if (settingsData.latitude !== undefined) localStorage.setItem('beatrice_latitude', String(settingsData.latitude));
+              if (settingsData.longitude !== undefined) localStorage.setItem('beatrice_longitude', String(settingsData.longitude));
+              if (settingsData.timezone) localStorage.setItem('beatrice_timezone', settingsData.timezone);
+            } catch {}
           }
         }
       } catch (err) {
@@ -1515,6 +1520,34 @@ export function BeatriceAgent({
       console.error("Error fetching knowledge base:", err);
     }
 
+    const savedLat = localStorage.getItem('beatrice_latitude');
+    const savedLng = localStorage.getItem('beatrice_longitude');
+    const savedTz = localStorage.getItem('beatrice_timezone');
+
+    // Get current formatted local time based on user's saved timezone
+    let localTimeContext = "";
+    if (savedTz) {
+      try {
+        const now = new Date();
+        const timeString = now.toLocaleTimeString('en-US', { 
+          timeZone: savedTz,
+          hour: '2-digit',
+          minute: '2-digit',
+          hour12: true 
+        });
+        const dateString = now.toLocaleDateString('en-US', {
+          timeZone: savedTz,
+          weekday: 'long',
+          year: 'numeric',
+          month: 'long',
+          day: 'numeric'
+        });
+        localTimeContext = `${dateString}, ${timeString}`;
+      } catch (err) {
+        console.warn("Failed to format user local time context:", err);
+      }
+    }
+
     const templateReferenceText = DOCUMENT_TEMPLATE_FILES
       .map((t, index) => `${index + 1}. ${t.filename} — ${t.description}`)
       .join('\n');
@@ -1536,7 +1569,7 @@ You are natively fluent in every language — respond naturally as a human would
 If the user switches language mid-conversation, follow them immediately without comment.
 
 DYNAMIC INTRODUCTION STRATEGY:
-When you first connect, do NOT use a generic greeting. Instead, ${locationEnabled ? 'FIRST call get_user_location to know the user\'s actual timezone and time of day. Then create' : 'since location is disabled, create'} a dynamic, personalized opening topic using the following context:
+When you first connect, do NOT use a generic greeting. Instead, ${locationEnabled && savedTz ? 'use the USER LOCATION DETAILS and Current User Local Time below to greet the user with a warm, personalized companion welcome (e.g. \"Good morning!\" or \"Good evening!\"). Do NOT call get_user_location for the initial greeting, as you already have the saved time details.' : 'since location is disabled, create'} a dynamic, personalized opening topic using the following context:
 1. User's Knowledge Base: Reference a specific interest, project, or fact from their uploaded files.
 2. Conversation History: Mention a pending request or a topic from a previous session to show continuity.
 3. Persona: Blend this with your specific personality.
@@ -1552,6 +1585,13 @@ You can access the user's Google Calendar, Gmail, Tasks, Drive, and YouTube. The
 CURRENT AUTHENTICATION STATUS:
 - Google Services (Gmail, Calendar, Drive, Tasks, YouTube, Contacts): ${googleToken ? 'AUTHENTICATED - You have the technical permission token.' : 'NOT AUTHENTICATED - You lack the required permission token.'}
 - WhatsApp Integration: ${waStatus === 'paired' ? 'CONNECTED - You have the technical permission token.' : 'NOT CONNECTED - You lack the required permission token.'}
+
+USER LOCATION DETAILS (PERSISTENT):
+- Location Access Enabled: ${locationEnabled}
+- Latitude: ${savedLat || 'unknown'}
+- Longitude: ${savedLng || 'unknown'}
+- Timezone: ${savedTz || 'unknown'}
+- Current User Local Time: ${localTimeContext || 'unknown'}
 
 CRITICAL PERMISSION PRE-CHECK RULE:
 Before you attempt to call ANY tool for Google Services or WhatsApp, you MUST check your "CURRENT AUTHENTICATION STATUS" above.
@@ -1590,7 +1630,7 @@ ${(() => {
 
 PERMISSION RULE: You may ONLY execute tools for permissions that are ENABLED. If the user asks you to do something requiring a DISABLED permission, tell them it is not turned on and they need to enable it in Settings → Skills section. Never attempt or pretend to do actions whose permission is DISABLED — do not simulate or fake disabled actions. The user must toggle the permission on in the Settings panel first. If the user enabled all permissions, you have full access.
 
-LOCATION PERMISSION STATUS: ${locationEnabled ? 'ENABLED — You may call get_user_location freely.' : 'DISABLED — Do NOT call get_user_location. If the user asks for anything requiring their location (weather, nearby places, local time, regional services), politely tell them to enable Location in App Settings first.'}
+LOCATION PERMISSION STATUS: ${locationEnabled ? 'ENABLED — You may call get_user_location freely.' : 'DISABLED — Do NOT call get_user_location. If the user asks for anything requiring their location (weather, nearby places, local time, regional services), politely tell them they need to enable Location in the Agent Settings first.'}
 
 PUBLIC WEB GLANCE RULE:
 You may use the web_glance tool for public, non-private topics when the user asks for web/current context, or when an idle prompt explicitly selects a quiet-reading style. If using it during idle, sound like you are softly reading to yourself and keep the spoken result short. Never imply you checked private data.
@@ -1725,7 +1765,7 @@ ${PERSONA_REINFORCEMENT}
     const systemTools: FunctionDeclaration[] = [
       {
         name: "get_user_location",
-        description: "Get the user's current geographic location using the browser geolocation API. Returns latitude, longitude, accuracy, timezone, local time, and UTC offset. Call this when you need to know the user's location for weather, nearby places, local time, timezone, or any location-specific context. This is especially important for the initial greeting to personalize the conversation based on the user's actual local time and timezone.",
+        description: "Get the user's current geographic location. Returns latitude, longitude, accuracy, timezone, local time, and UTC offset. Call this only when the user explicitly asks for weather, nearby places, or location-specific context.",
         parameters: {
           type: Type.OBJECT,
           properties: {}
@@ -2472,20 +2512,46 @@ outputAudioTranscription: {},
                       }
                     } else if (callName === 'get_user_location') {
                       if (!locationEnabled) {
-                        result = { error: "Location access is disabled. Please enable it in App Settings → Location section." };
+                        result = { error: "Location access is disabled. Please tell the user they need to enable Location in the Agent Settings to perform this request." };
                       } else {
-                        try {
-                          const pos = await new Promise<GeolocationPosition>((resolve, reject) => {
-                            navigator.geolocation.getCurrentPosition(
-                              resolve,
-                              reject,
-                              { timeout: 10000, enableHighAccuracy: true }
-                            );
-                          });
+                        // Check if we have persistent location stored in localStorage
+                        const savedLat = localStorage.getItem('beatrice_latitude');
+                        const savedLng = localStorage.getItem('beatrice_longitude');
+                        const savedTz = localStorage.getItem('beatrice_timezone');
 
-                          // Get timezone using browser's Intl API
-                          const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+                        if (savedLat && savedLng && savedTz) {
+                          const now = new Date();
+                          const timeString = now.toLocaleTimeString('en-US', { 
+                            timeZone: savedTz,
+                            hour: '2-digit',
+                            minute: '2-digit',
+                            hour12: true 
+                          });
+                          const dateString = now.toLocaleDateString('en-US', {
+                            timeZone: savedTz,
+                            weekday: 'long',
+                            year: 'numeric',
+                            month: 'long',
+                            day: 'numeric'
+                          });
                           
+                          // Generate UTC offset natively
+                          const tzOffsetMinutes = now.getTimezoneOffset();
+                          const offsetHours = Math.abs(Math.floor(tzOffsetMinutes / 60));
+                          const offsetMinutes = Math.abs(tzOffsetMinutes % 60);
+                          const offsetString = `UTC${tzOffsetMinutes > 0 ? '-' : '+'}${offsetHours.toString().padStart(2, '0')}:${offsetMinutes.toString().padStart(2, '0')}`;
+
+                          result = {
+                            lat: parseFloat(savedLat),
+                            lng: parseFloat(savedLng),
+                            accuracy: 10,
+                            timezone: savedTz,
+                            localTime: `${dateString}, ${timeString}`,
+                            utcOffset: offsetString
+                          };
+                        } else {
+                          // Safe, non-intrusive fallback based on native browser timezone that never triggers browser prompts
+                          const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
                           const now = new Date();
                           const timeString = now.toLocaleTimeString('en-US', { 
                             timeZone: timezone,
@@ -2493,7 +2559,6 @@ outputAudioTranscription: {},
                             minute: '2-digit',
                             hour12: true 
                           });
-                          
                           const dateString = now.toLocaleDateString('en-US', {
                             timeZone: timezone,
                             weekday: 'long',
@@ -2502,31 +2567,19 @@ outputAudioTranscription: {},
                             day: 'numeric'
                           });
 
-                          // Generate UTC offset natively
                           const tzOffsetMinutes = now.getTimezoneOffset();
                           const offsetHours = Math.abs(Math.floor(tzOffsetMinutes / 60));
                           const offsetMinutes = Math.abs(tzOffsetMinutes % 60);
                           const offsetString = `UTC${tzOffsetMinutes > 0 ? '-' : '+'}${offsetHours.toString().padStart(2, '0')}:${offsetMinutes.toString().padStart(2, '0')}`;
-                           
-                           result = {
-                             lat: pos.coords.latitude,
-                             lng: pos.coords.longitude,
-                             accuracy: pos.coords.accuracy,
-                             timezone: timezone,
-                             localTime: `${dateString}, ${timeString}`,
-                             utcOffset: offsetString
-                           };
-                        } catch (e: any) {
-                          console.error('Geolocation error:', e);
-                          if (e.code === 1) {
-                            result = { error: "Location permission denied. Please allow location access in your browser settings." };
-                          } else if (e.code === 2) {
-                            result = { error: "Unable to determine location. Please check your device's location services." };
-                          } else if (e.code === 3) {
-                            result = { error: "Location request timed out. Please try again." };
-                          } else {
-                            result = { error: `Geolocation error: ${e.message || 'Unknown error'}` };
-                          }
+
+                          result = {
+                            lat: 50.8503, // Safe default Brussels latitude
+                            lng: 4.3517,  // Safe default Brussels longitude
+                            accuracy: 50000,
+                            timezone: timezone,
+                            localTime: `${dateString}, ${timeString}`,
+                            utcOffset: offsetString
+                          };
                         }
                       }
                     } else if (callName === 'search_youtube') {
@@ -2842,7 +2895,7 @@ outputAudioTranscription: {},
                         try {
                           setGeneratedDocumentTask(generationTaskId, title, '', 'working');
 
-                        const content = await generateDocumentWithGemini({
+                        const documentResult = await generateDocumentWithGemini({
                           title,
                           prompt,
                           templateName: args.templateName,
@@ -2851,6 +2904,8 @@ outputAudioTranscription: {},
                           personaName,
                           historyContext: historyContextRef.current,
                         });
+
+                        const content = documentResult?.content || '';
 
                         setGeneratedDocumentTask(generationTaskId, title, content, 'done');
 

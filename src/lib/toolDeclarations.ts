@@ -45,7 +45,7 @@ export const googleTools: FunctionDeclaration[] = [
   },
   {
     name: "get_user_location",
-    description: "Get the user's current geographic location using the browser geolocation API. Returns latitude, longitude, accuracy, timezone, local time, and UTC offset. Call this when you need to know the user's location for weather, nearby places, local time, timezone, or any location-specific context. This is especially important for the initial greeting to personalize the conversation based on the user's actual local time and timezone.",
+    description: "Get the user's current geographic location. Returns latitude, longitude, accuracy, timezone, local time, and UTC offset. Call this only when the user explicitly asks for weather, nearby places, or location-specific context.",
     parameters: {
       type: Type.OBJECT,
       properties: {}

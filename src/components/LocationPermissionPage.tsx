@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { motion } from 'motion/react';
 import { MapPin, Shield, Loader2 } from 'lucide-react';
 import { db } from '../lib/db';
+import { supabase } from '../lib/supabase';
 
 interface LocationPermissionPageProps {
   userId: string;
@@ -16,15 +17,63 @@ export function LocationPermissionPage({ userId, onComplete }: LocationPermissio
     setRequesting(true);
     setError('');
     try {
-      // Actually request browser geolocation permission
-      await new Promise<GeolocationPosition>((resolve, reject) => {
+      // Actually request browser geolocation permission and get position
+      const pos = await new Promise<GeolocationPosition>((resolve, reject) => {
         navigator.geolocation.getCurrentPosition(resolve, reject, { timeout: 10000 });
       });
 
+      const lat = pos.coords.latitude;
+      const lng = pos.coords.longitude;
+      const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+
       // Permission granted — store in settings
       const existing = await db.settings.get(userId) || { userId };
-      await db.settings.put({ ...existing, locationEnabled: true });
-      try { localStorage.setItem('beatrice_location_done', 'true'); } catch {}
+      await db.settings.put({ 
+        ...existing, 
+        locationEnabled: true,
+        latitude: lat,
+        longitude: lng,
+        timezone: timezone
+      });
+      try {
+        localStorage.setItem('beatrice_location_done', 'true');
+        localStorage.setItem('beatrice_location_enabled', 'true');
+        localStorage.setItem('beatrice_latitude', String(lat));
+        localStorage.setItem('beatrice_longitude', String(lng));
+        localStorage.setItem('beatrice_timezone', timezone);
+      } catch {}
+
+      // Sync to Supabase
+      try {
+        const res = await supabase.from('user_settings').upsert({
+          user_id: userId,
+          location_enabled: true,
+          latitude: lat,
+          longitude: lng,
+          timezone: timezone,
+          updated_at: new Date().toISOString(),
+        });
+        if (res.error) {
+          // Fallback if columns are missing
+          await supabase.from('user_settings').upsert({
+            user_id: userId,
+            location_enabled: true,
+            updated_at: new Date().toISOString(),
+          });
+        }
+      } catch (err) {
+        console.warn('Supabase sync failed on location allow, running fallback:', err);
+        try {
+          await supabase.from('user_settings').upsert({
+            user_id: userId,
+            location_enabled: true,
+            updated_at: new Date().toISOString(),
+          });
+        } catch (e) {
+          console.warn('Supabase fallback also failed:', e);
+        }
+      }
+
       onComplete();
     } catch (e: any) {
       if (e?.code === 1) {
@@ -32,7 +81,22 @@ export function LocationPermissionPage({ userId, onComplete }: LocationPermissio
         setError('Location access was denied. You can enable it later in App Settings.');
         const existing = await db.settings.get(userId) || { userId };
         await db.settings.put({ ...existing, locationEnabled: false });
-        try { localStorage.setItem('beatrice_location_done', 'true'); } catch {}
+        try {
+          localStorage.setItem('beatrice_location_done', 'true');
+          localStorage.setItem('beatrice_location_enabled', 'false');
+        } catch {}
+
+        // Sync to Supabase
+        try {
+          await supabase.from('user_settings').upsert({
+            user_id: userId,
+            location_enabled: false,
+            updated_at: new Date().toISOString(),
+          });
+        } catch (err) {
+          console.warn('Supabase sync failed on location deny:', err);
+        }
+
         setTimeout(onComplete, 2000);
       } else {
         setError('Could not determine location. You can try again later in App Settings.');
@@ -46,7 +110,22 @@ export function LocationPermissionPage({ userId, onComplete }: LocationPermissio
   const handleSkip = async () => {
     const existing = await db.settings.get(userId) || { userId };
     await db.settings.put({ ...existing, locationEnabled: false });
-    try { localStorage.setItem('beatrice_location_done', 'true'); } catch {}
+    try {
+      localStorage.setItem('beatrice_location_done', 'true');
+      localStorage.setItem('beatrice_location_enabled', 'false');
+    } catch {}
+
+    // Sync to Supabase
+    try {
+      await supabase.from('user_settings').upsert({
+        user_id: userId,
+        location_enabled: false,
+        updated_at: new Date().toISOString(),
+      });
+    } catch (err) {
+      console.warn('Supabase sync failed on location skip:', err);
+    }
+
     onComplete();
   };
 

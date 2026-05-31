@@ -148,13 +148,25 @@ export function SettingsPage({
         localStorage.setItem('beatrice_ambient_enabled', String(ambientEnabled));
         localStorage.setItem('beatrice_ambient_volume', String(ambientVolume));
         localStorage.setItem('beatrice_location_enabled', String(locationEnabled));
+        if (!locationEnabled) {
+          localStorage.removeItem('beatrice_latitude');
+          localStorage.removeItem('beatrice_longitude');
+          localStorage.removeItem('beatrice_timezone');
+        }
       } catch {}
 
       // Save local Dexie DB values
       const local = await db.settings.get(user.uid) || ({ userId: user.uid } as UserSettings);
+      const savedLat = locationEnabled ? localStorage.getItem('beatrice_latitude') : null;
+      const savedLng = locationEnabled ? localStorage.getItem('beatrice_longitude') : null;
+      const savedTz = locationEnabled ? localStorage.getItem('beatrice_timezone') : null;
+
       await db.settings.put({
         ...local,
         locationEnabled,
+        latitude: savedLat ? parseFloat(savedLat) : undefined,
+        longitude: savedLng ? parseFloat(savedLng) : undefined,
+        timezone: savedTz || undefined,
         whatsappPermissions: waPermissions,
         updatedAt: new Date().toISOString(),
       });
@@ -165,13 +177,39 @@ export function SettingsPage({
         const res = await supabase.from('user_settings').upsert({
           user_id: user.uid,
           location_enabled: locationEnabled,
+          latitude: savedLat ? parseFloat(savedLat) : null,
+          longitude: savedLng ? parseFloat(savedLng) : null,
+          timezone: savedTz || null,
           whatsapp_permissions: waPermissions,
           updated_at: new Date().toISOString(),
         });
-        sbError = res.error;
+        if (res.error) {
+          // Fallback if columns are missing
+          const resFallback = await supabase.from('user_settings').upsert({
+            user_id: user.uid,
+            location_enabled: locationEnabled,
+            whatsapp_permissions: waPermissions,
+            updated_at: new Date().toISOString(),
+          });
+          sbError = resFallback.error;
+        }
       } catch (e) {
         console.warn('Upsert failed, possibly missing location_enabled column. Retrying fallback...', e);
-        sbError = e;
+        try {
+          const resFallback = await supabase.from('user_settings').upsert({
+            user_id: user.uid,
+            whatsapp_permissions: waPermissions,
+            updated_at: new Date().toISOString(),
+          });
+          if (!resFallback.error) {
+            sbError = null;
+          } else {
+            sbError = resFallback.error;
+          }
+        } catch (fallbackErr) {
+          console.error('Fallback upsert also failed:', fallbackErr);
+          sbError = fallbackErr;
+        }
       }
 
       if (sbError) {
@@ -333,15 +371,25 @@ export function SettingsPage({
                   const next = !locationEnabled;
                   if (next) {
                     try {
-                      await new Promise<GeolocationPosition>((resolve, reject) => {
+                      const pos = await new Promise<GeolocationPosition>((resolve, reject) => {
                         navigator.geolocation.getCurrentPosition(resolve, reject, { timeout: 10000 });
                       });
                       setLocationEnabled(true);
+                      try {
+                        localStorage.setItem('beatrice_latitude', String(pos.coords.latitude));
+                        localStorage.setItem('beatrice_longitude', String(pos.coords.longitude));
+                        localStorage.setItem('beatrice_timezone', Intl.DateTimeFormat().resolvedOptions().timeZone);
+                      } catch {}
                     } catch {
                       setLocationEnabled(false);
                     }
                   } else {
                     setLocationEnabled(false);
+                    try {
+                      localStorage.removeItem('beatrice_latitude');
+                      localStorage.removeItem('beatrice_longitude');
+                      localStorage.removeItem('beatrice_timezone');
+                    } catch {}
                   }
                 }}
                 aria-pressed={locationEnabled}
