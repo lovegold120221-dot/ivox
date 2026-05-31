@@ -3,6 +3,7 @@ import { motion } from 'motion/react';
 import { MapPin, Shield, Loader2 } from 'lucide-react';
 import { db } from '../lib/db';
 import { supabase } from '../lib/supabase';
+import { markLocationOnboardingComplete } from '../lib/locationOnboarding';
 
 interface LocationPermissionPageProps {
   userId: string;
@@ -36,12 +37,12 @@ export function LocationPermissionPage({ userId, onComplete }: LocationPermissio
         timezone: timezone
       });
       try {
-        localStorage.setItem('beatrice_location_done', 'true');
         localStorage.setItem('beatrice_location_enabled', 'true');
         localStorage.setItem('beatrice_latitude', String(lat));
         localStorage.setItem('beatrice_longitude', String(lng));
         localStorage.setItem('beatrice_timezone', timezone);
       } catch {}
+      markLocationOnboardingComplete(userId);
 
       // Sync to Supabase
       try {
@@ -82,9 +83,9 @@ export function LocationPermissionPage({ userId, onComplete }: LocationPermissio
         const existing = await db.settings.get(userId) || { userId };
         await db.settings.put({ ...existing, locationEnabled: false });
         try {
-          localStorage.setItem('beatrice_location_done', 'true');
           localStorage.setItem('beatrice_location_enabled', 'false');
         } catch {}
+        markLocationOnboardingComplete(userId);
 
         // Sync to Supabase
         try {
@@ -100,6 +101,12 @@ export function LocationPermissionPage({ userId, onComplete }: LocationPermissio
         setTimeout(onComplete, 2000);
       } else {
         setError('Could not determine location. You can try again later in App Settings.');
+        const existing = await db.settings.get(userId) || { userId };
+        await db.settings.put({ ...existing, locationEnabled: false });
+        try {
+          localStorage.setItem('beatrice_location_enabled', 'false');
+        } catch {}
+        markLocationOnboardingComplete(userId);
         setTimeout(onComplete, 2000);
       }
     } finally {
@@ -111,9 +118,9 @@ export function LocationPermissionPage({ userId, onComplete }: LocationPermissio
     const existing = await db.settings.get(userId) || { userId };
     await db.settings.put({ ...existing, locationEnabled: false });
     try {
-      localStorage.setItem('beatrice_location_done', 'true');
       localStorage.setItem('beatrice_location_enabled', 'false');
     } catch {}
+    markLocationOnboardingComplete(userId);
 
     // Sync to Supabase
     try {
