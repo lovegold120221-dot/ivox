@@ -4,10 +4,12 @@ import { X, Send, ArrowDown, MessageSquare, ChevronLeft, Menu, Paperclip } from 
 import ReactMarkdown from 'react-markdown';
 
 interface ChatMessage {
+  id?: number | string;
   role: 'user' | 'model';
   text: string;
   sessionId?: string;
   timestamp: any;
+  isLiveTranscript?: boolean;
 }
 
 interface SessionSummary {
@@ -308,7 +310,7 @@ export function ChatPage({
             <AnimatePresence>
               {messages.map((msg, i) => (
                 <motion.div
-                  key={i}
+                  key={msg.id ?? `${msg.sessionId || 'session'}-${msg.role}-${msg.timestamp || i}`}
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.2 }}

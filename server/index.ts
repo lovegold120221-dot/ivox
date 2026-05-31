@@ -3,7 +3,8 @@ import express from 'express';
 import cors from 'cors';
 import { WhatsAppManager } from './whatsapp';
 import * as waTools from './whatsapp-tools';
-import * as belgianTools from './belgian-tools';
+import { runPlaywrightAction } from './playwright-tool';
+import { duffelManager } from './duffel';
 
 const app = express();
 const PORT = process.env.SANDBOX_PORT ? parseInt(process.env.SANDBOX_PORT) : 4200;
@@ -81,73 +82,47 @@ app.post('/api/web/glance', async (req, res) => {
   }
 });
 
-// ── Belgian Admin & Business Tools Route ──
-
-app.post('/api/belgian/tool', async (req, res) => {
+app.post('/api/playwright/action', async (req, res) => {
   try {
-    const { tool } = req.body;
-    const params = req.body.params || {};
+    const result = await runPlaywrightAction(req.body || {});
+    res.json(result);
+  } catch (err: any) {
+    console.error('Playwright action error:', err);
+    res.status(500).json({
+      error: {
+        code: 'PLAYWRIGHT_ACTION_FAILED',
+        message: err?.message || 'Playwright action failed',
+      },
+    });
+  }
+});
 
-    if (!tool) {
-      res.status(400).json({ error: 'tool is required' });
+// ── VIES VAT Proxy ──
+app.post('/api/vies/validate', async (req, res) => {
+  try {
+    const { countryCode, vatNumber } = req.body;
+    if (!countryCode || !vatNumber) {
+      res.status(400).json({ error: 'countryCode and vatNumber required' });
       return;
     }
 
-    let result: any;
-    switch (tool) {
-      case 'belgian_company_lookup':
-        result = await belgianTools.lookupCompany(String(params.query || ''));
-        break;
-      case 'belgian_vies_vat_validate':
-        result = await belgianTools.validateViesVat(String(params.vatNumber || ''));
-        break;
-      case 'belgian_peppol_invoice':
-        result = await belgianTools.generatePeppolInvoice({
-          recipientKbo: String(params.recipientKbo || ''),
-          amount: Number(params.amount) || 0,
-          description: String(params.description || ''),
-          dueDate: params.dueDate ? String(params.dueDate) : undefined
-        });
-        break;
-      case 'belgian_tax_calendar':
-        result = await belgianTools.fetchTaxCalendar(params.period ? String(params.period) : undefined);
-        break;
-      case 'belgian_registration_tax_calc':
-        result = await belgianTools.calculateRegistrationTax({
-          purchasePrice: Number(params.purchasePrice) || 0,
-          region: params.region || 'Flanders',
-          isFirstTimeBuyer: !!params.isFirstTimeBuyer,
-          energyRenovation: !!params.energyRenovation
-        });
-        break;
-      case 'belgian_itsme_navigator':
-        result = await belgianTools.getItsmeInstructions(String(params.administrativeTask || ''));
-        break;
-      case 'belgian_language_bridge':
-        result = await belgianTools.runLanguageBridge(String(params.text || ''), params.targetLanguage || 'EN');
-        break;
-      case 'belgian_social_security_navigator':
-        result = await belgianTools.navigateSocialSecurity(String(params.query || ''));
-        break;
-      case 'belgian_labor_law_simplifier':
-        result = await belgianTools.simplifyLaborLaw({
-          clauseType: String(params.clauseType || ''),
-          contractType: params.contractType ? String(params.contractType) : undefined,
-          durationMonths: params.durationMonths ? Number(params.durationMonths) : undefined,
-          salary: params.salary ? Number(params.salary) : undefined
-        });
-        break;
-      case 'belgian_mobility_planner':
-        result = await belgianTools.getBelgianMobility(String(params.from || ''), String(params.to || ''), params.time ? String(params.time) : undefined);
-        break;
-      default:
-        res.status(400).json({ error: `Unknown Belgian tool: ${tool}` });
-        return;
+    const response = await fetch('https://ec.europa.eu/taxation_customs/vies/rest-api/check-vat-number', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ countryCode, vatNumber }),
+      signal: AbortSignal.timeout(8000),
+    });
+
+    if (!response.ok) {
+      res.status(502).json({ error: `VIES API failed with status ${response.status}` });
+      return;
     }
-    res.json(result);
+
+    const data = await response.json();
+    res.json(data);
   } catch (err: any) {
-    console.error('Belgian tool error:', err);
-    res.status(500).json({ error: err.message || 'Belgian tool execution failed' });
+    console.error('VIES validation error:', err);
+    res.status(500).json({ error: err.message || 'VIES validation failed' });
   }
 });
 
@@ -282,6 +257,26 @@ app.post('/api/whatsapp/admin/test-message', async (req, res) => {
     res.json(result);
   } catch (err: any) {
     res.status(500).json({ error: err.message || 'Failed to send test message' });
+  }
+});
+
+// ── Duffel Flight Booking Routes ──
+
+app.post('/api/flights/search', async (req, res) => {
+  try {
+    const result = await duffelManager.searchFlights(req.body);
+    res.json(result);
+  } catch (err: any) {
+    res.status(500).json({ error: err.message || 'Flight search failed' });
+  }
+});
+
+app.post('/api/flights/book', async (req, res) => {
+  try {
+    const result = await duffelManager.bookFlight(req.body);
+    res.json(result);
+  } catch (err: any) {
+    res.status(500).json({ error: err.message || 'Flight booking failed' });
   }
 });
 

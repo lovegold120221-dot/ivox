@@ -189,8 +189,17 @@ export function VideoPage({
           }
         }
       }, 300);
-    } catch (err) {
+    } catch (err: any) {
       console.error('Screen sharing error:', err);
+      let msg = "Failed to share screen. Please verify that screen recording permissions are enabled for your browser in system settings.";
+      if (err instanceof Error) {
+        if (err.name === 'NotAllowedError' || err.message?.includes('Permission denied') || err.message?.includes('Permission dismissed')) {
+          msg = "Screen share request was dismissed or denied. Please grant permission to share your screen.";
+        } else {
+          msg = `Screen share error: ${err.message}`;
+        }
+      }
+      alert(msg);
     }
   };
 

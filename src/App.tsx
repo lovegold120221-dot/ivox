@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback } from 'react';
 import { auth } from './firebase';
-import { supabase, handleDbError } from './lib/supabase';
+import { db } from './lib/db';
 import {
   onAuthStateChanged,
   signOut,
@@ -15,41 +15,59 @@ import { EntryFlow } from './components/EntryFlow';
 import { AuthPage } from './components/AuthPage';
 import { BeatriceAgent } from './components/BeatriceAgent';
 import { AdminPortal } from './components/AdminPortal';
+import { LocationPermissionPage } from './components/LocationPermissionPage';
+import { SettingsPage } from './components/SettingsPage';
+import { ProfilePage } from './components/ProfilePage';
 
 export default function App() {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [googleToken, setGoogleToken] = useState<string | null>(null);
   const [showEntryFlow, setShowEntryFlow] = useState(true);
+  const [showLocationStep, setShowLocationStep] = useState(() => {
+    try { return !localStorage.getItem('beatrice_location_done'); } catch { return true; }
+  });
   const [authLanguage, setAuthLanguage] = useState(() => {
     try { return localStorage.getItem('beatrice_language') || 'en'; } catch { return 'en'; }
   });
-  const storeToken = useCallback((token: string, uid: string, refreshToken?: string) => {
+  const [currentPath, setCurrentPath] = useState(() => {
+    return typeof window !== 'undefined' ? window.location.pathname.replace(/\/+$/, '') : '/';
+  });
+
+  useEffect(() => {
+    const handlePopState = () => {
+      setCurrentPath(window.location.pathname.replace(/\/+$/, '') || '/');
+    };
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
+
+  const storeToken = useCallback(async (token: string, uid: string, refreshToken?: string) => {
     setGoogleToken(token);
     try {
-      localStorage.setItem('beatrice_google_token', token);
-      localStorage.setItem('beatrice_google_uid', uid);
-      if (refreshToken) {
-        localStorage.setItem('beatrice_google_refresh_token', refreshToken);
+      const existing = await db.settings.get(uid) || { userId: uid };
+      await db.settings.put({
+        ...existing,
+        googleToken: token,
+        ...(refreshToken ? { googleRefreshToken: refreshToken } : {})
+      });
+    } catch (err) {
+      console.error('Failed to store token locally:', err);
+    }
+  }, []);
+
+  const clearStoredToken = useCallback(async (uid: string) => {
+    try {
+      const existing = await db.settings.get(uid);
+      if (existing) {
+        await db.settings.put({
+          ...existing,
+          googleToken: undefined,
+          googleRefreshToken: undefined
+        });
       }
-    } catch {}
-  }, []);
-
-  const clearStoredToken = useCallback(() => {
-    try {
-      localStorage.removeItem('beatrice_google_token');
-      localStorage.removeItem('beatrice_google_refresh_token');
-      localStorage.removeItem('beatrice_google_uid');
-    } catch {}
-  }, []);
-
-  const restoreStoredToken = useCallback((uid: string): string | null => {
-    try {
-      const stored = localStorage.getItem('beatrice_google_token');
-      const storedUid = localStorage.getItem('beatrice_google_uid');
-      return stored && storedUid === uid ? stored : null;
-    } catch {
-      return null;
+    } catch (err) {
+      console.error('Failed to clear token locally:', err);
     }
   }, []);
 
@@ -59,30 +77,18 @@ export default function App() {
 
       if (u) {
         try {
-          const restored = restoreStoredToken(u.uid);
-          if (restored) {
-            setGoogleToken(restored);
+          const settings = await db.settings.get(u.uid);
+          if (settings?.googleToken) {
+            setGoogleToken(settings.googleToken);
           }
 
-          const { data: existing } = await supabase
-            .from('user_settings')
-            .select('user_id')
-            .eq('user_id', u.uid)
-            .maybeSingle();
-
-          if (!existing) {
-            await supabase
-              .from('user_settings')
-              .insert({
-                user_id: u.uid,
-                persona_name: 'Beatrice',
-                selected_voice: 'Aoede',
-                custom_prompt: '',
-                context_size: 20,
-              });
+          if (!settings) {
+            await db.settings.put({
+              userId: u.uid,
+            });
           }
         } catch (error) {
-          handleDbError(error, 'user_settings', 'create');
+          console.error('Failed to initialize local settings:', error);
         }
       }
 
@@ -90,7 +96,7 @@ export default function App() {
     });
 
     return () => unsub();
-  }, [restoreStoredToken]);
+  }, []);
 
   const handleLogin = useCallback(async () => {
     try {
@@ -151,9 +157,11 @@ export default function App() {
 
   const handleLogout = useCallback(() => {
     setGoogleToken(null);
-    clearStoredToken();
+    if (user) {
+      clearStoredToken(user.uid);
+    }
     signOut(auth);
-  }, [clearStoredToken]);
+  }, [clearStoredToken, user]);
 
   const handleGoogleToken = useCallback((token: string | null) => {
     setGoogleToken(token);
@@ -180,15 +188,50 @@ export default function App() {
     return <AuthPage onGoogleToken={handleGoogleToken} onLogin={handleLogin} />;
   }
 
-  const isAdminPortal = typeof window !== 'undefined'
-    && window.location.pathname.replace(/\/+$/, '') === '/adminportal';
+  // Show location permission step for new users after auth
+  if (showLocationStep) {
+    return (
+      <LocationPermissionPage
+        userId={user.uid}
+        onComplete={() => setShowLocationStep(false)}
+      />
+    );
+  }
 
-  if (isAdminPortal) {
+  if (currentPath === '/adminportal') {
     return (
       <AdminPortal
         user={user}
-        onBack={() => { window.location.href = '/'; }}
+        onBack={() => {
+          window.history.pushState(null, '', '/');
+          window.dispatchEvent(new PopStateEvent('popstate'));
+        }}
         onLogout={handleLogout}
+      />
+    );
+  }
+
+  if (currentPath === '/settings') {
+    return (
+      <SettingsPage
+        user={user}
+        googleToken={googleToken}
+        onLogin={handleLogin}
+        onBack={() => {
+          window.history.pushState(null, '', '/');
+          window.dispatchEvent(new PopStateEvent('popstate'));
+        }}
+      />
+    );
+  }
+
+  if (currentPath === '/profile') {
+    return (
+      <ProfilePage
+        onClose={() => {
+          window.history.pushState(null, '', '/');
+          window.dispatchEvent(new PopStateEvent('popstate'));
+        }}
       />
     );
   }

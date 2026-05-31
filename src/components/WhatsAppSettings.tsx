@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { supabase } from '../lib/supabase';
+import { db } from '../lib/db';
 import { startWhatsAppPairing, getWhatsAppStatus, disconnectWhatsApp } from '../lib/whatsappClient';
 
 interface WhatsAppSettingsProps {
@@ -12,7 +12,11 @@ export function WhatsAppSettings({ userId }: WhatsAppSettingsProps) {
   const [waPhone, setWaPhone] = useState<string | null>(null);
   const [waPermissions, setWaPermissions] = useState<Record<string, boolean>>({
     send_messages: false, read_chats: false, access_contacts: false, manage_contacts: false,
-    access_groups: false, send_group_messages: false, read_group_chats: false, view_message_history: false
+    access_groups: false, send_group_messages: false, read_group_chats: false, view_message_history: false,
+    make_calls: false, make_whatsapp_calls: false, generate_image: true,
+    create_document: true, validate_vat_number: true, check_train_route: true,
+    calculate_registration_tax: true, check_tax_deadlines: true, generate_peppol_invoice_xml: true,
+    gmail: true, calendar: true, tasks: true, drive: true, youtube: true
   });
   const [waPairing, setWaPairing] = useState(false);
   const [pairingMethod, setPairingMethod] = useState<'qr' | 'phone'>('qr');
@@ -41,7 +45,8 @@ export function WhatsAppSettings({ userId }: WhatsAppSettingsProps) {
         }
         if (s.status === 'paired' || s.status === 'disconnected' || s.error) {
           if (s.status === 'paired') {
-            await supabase.from('user_settings').upsert({ user_id: userId, whatsapp_paired: true, whatsapp_phone: s.phone || null, whatsapp_permissions: waPermissions, updated_at: new Date().toISOString() });
+            const existing = await db.settings.get(userId) || { userId };
+            await db.settings.put({ ...existing, whatsappPaired: true, whatsappPhone: s.phone || null, whatsappPermissions: waPermissions, updatedAt: new Date().toISOString() });
           }
           if (waPollRef.current) clearInterval(waPollRef.current);
           waPollRef.current = null;
@@ -57,13 +62,9 @@ export function WhatsAppSettings({ userId }: WhatsAppSettingsProps) {
 
   const loadStatus = async () => {
     try {
-      const { data: settings } = await supabase
-        .from('user_settings')
-        .select('whatsapp_permissions, whatsapp_paired, whatsapp_phone')
-        .eq('user_id', userId)
-        .single();
+      const settings = await db.settings.get(userId);
       if (settings) {
-        if (settings.whatsapp_permissions) setWaPermissions(prev => ({ ...prev, ...settings.whatsapp_permissions }));
+        setWaPermissions(prev => ({ ...prev, ...(settings.whatsappPermissions || {}) }));
       }
 
       const s = await getWhatsAppStatus(userId);
@@ -92,12 +93,13 @@ export function WhatsAppSettings({ userId }: WhatsAppSettingsProps) {
     const nextPermissions = { ...waPermissions, [key]: !waPermissions[key] };
     setWaPermissions(nextPermissions);
     try {
-      await supabase.from('user_settings').upsert({
-        user_id: userId,
-        whatsapp_permissions: nextPermissions,
-        whatsapp_paired: waStatus === 'paired',
-        whatsapp_phone: waPhone || null,
-        updated_at: new Date().toISOString()
+      const existing = await db.settings.get(userId) || { userId };
+      await db.settings.put({
+        ...existing,
+        whatsappPermissions: nextPermissions,
+        whatsappPaired: waStatus === 'paired',
+        whatsappPhone: waPhone || null,
+        updatedAt: new Date().toISOString()
       });
     } catch (error) {
       console.error('Failed to save WhatsApp permissions:', error);
@@ -124,7 +126,8 @@ export function WhatsAppSettings({ userId }: WhatsAppSettingsProps) {
                   setWaPhone(null);
                   setWaQrCode(null);
                   setWaPairingCode(null);
-                  await supabase.from('user_settings').upsert({ user_id: userId, whatsapp_paired: false, whatsapp_phone: null, whatsapp_permissions: waPermissions, updated_at: new Date().toISOString() });
+                  const existing = await db.settings.get(userId) || { userId };
+                  await db.settings.put({ ...existing, whatsappPaired: false, whatsappPhone: null, whatsappPermissions: waPermissions, updatedAt: new Date().toISOString() });
                 }}
                 className="px-4 py-2 bg-red-500/10 hover:bg-red-500/20 active:scale-95 rounded-xl text-xs font-['SF_Pro_Text',system-ui,sans-serif] font-semibold text-red-400 border border-red-500/20 transition-all duration-200 cursor-pointer"
               >
@@ -328,39 +331,6 @@ export function WhatsAppSettings({ userId }: WhatsAppSettingsProps) {
             </div>
           )}
         </div>
-
-        {waStatus === 'paired' && (
-          <div className="border-t border-white/[0.04] bg-white/[0.005]">
-            {[
-              { key: 'send_messages', label: 'Send Messages', desc: 'Allow Beatrice to send texts on your behalf' },
-              { key: 'read_chats', label: 'Read Chats', desc: 'Scan and digest incoming WhatsApp messages' },
-              { key: 'access_contacts', label: 'Access Contacts', desc: 'Search and link contact records' },
-              { key: 'manage_contacts', label: 'Manage Contacts', desc: 'Register or update contacts' },
-              { key: 'access_groups', label: 'Access Groups', desc: 'Browse joined groups' },
-              { key: 'send_group_messages', label: 'Send Group Messages', desc: 'Post announcements or chat replies to groups' },
-              { key: 'read_group_chats', label: 'Read Group Chats', desc: 'Follow and analyze group discussions' },
-              { key: 'view_message_history', label: 'View Message History', desc: 'Read past conversation logs' },
-              { key: 'make_calls', label: 'Make Phone Calls', desc: 'Dial contacts from your phonebook via the native dialer' },
-              { key: 'make_whatsapp_calls', label: 'WhatsApp Calls', desc: 'Initiate WhatsApp voice or video calls to contacts' },
-            ].map((p, i, arr) => (
-              <div key={p.key} className={`px-5 py-4 flex items-center justify-between transition-colors duration-300 hover:bg-white/[0.01] ${i !== arr.length - 1 ? 'border-b border-white/[0.03]' : ''}`}>
-                <div className="flex flex-col gap-0.5 pr-4">
-                  <span className="text-[14px] text-white font-['SF_Pro_Text',system-ui,sans-serif] font-semibold tracking-tight">{p.label}</span>
-                  <span className="text-[11px] text-white/40 font-['SF_Pro_Text',system-ui,sans-serif] font-medium leading-relaxed">{p.desc}</span>
-                </div>
-                <button
-                  onClick={() => toggleWaPermission(p.key)}
-                  aria-pressed={waPermissions[p.key]}
-                  aria-label={`Toggle ${p.label} permission`}
-                  title={`Toggle ${p.label} permission`}
-                  className={`w-10 h-6 rounded-full transition-all duration-300 flex items-center shrink-0 cursor-pointer ${waPermissions[p.key] ? 'bg-[#d0a78b] shadow-[0_0_10px_rgba(208,167,139,0.3)]' : 'bg-zinc-800'}`}
-                >
-                  <span className={`block w-4.5 h-4.5 rounded-full bg-white transition-all duration-300 shadow-md ${waPermissions[p.key] ? 'ml-[18px]' : 'ml-[3px]'}`} />
-                </button>
-              </div>
-            ))}
-          </div>
-        )}
       </div>
     </section>
   );
