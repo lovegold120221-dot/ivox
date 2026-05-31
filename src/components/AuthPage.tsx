@@ -83,6 +83,9 @@ export function AuthPage({ onGoogleToken, onLogin }: AuthPageProps) {
     if (authPassword.length < 6) { setAuthError('Password must be at least 6 characters'); return; }
     try {
       if (authMode === 'register') {
+        try {
+          localStorage.setItem('beatrice_just_registered', 'true');
+        } catch {}
         const cred = await createUserWithEmailAndPassword(auth, authEmail, authPassword);
         if (authDisplayName.trim()) {
           await updateProfile(cred.user, { displayName: authDisplayName.trim() });

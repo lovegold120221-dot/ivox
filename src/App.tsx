@@ -8,7 +8,8 @@ import {
   signInWithPopup,
   GoogleAuthProvider,
   linkWithPopup,
-  reauthenticateWithPopup
+  reauthenticateWithPopup,
+  getAdditionalUserInfo
 } from 'firebase/auth';
 import { Loader2 } from 'lucide-react';
 import { EntryFlow } from './components/EntryFlow';
@@ -24,9 +25,7 @@ export default function App() {
   const [loading, setLoading] = useState(true);
   const [googleToken, setGoogleToken] = useState<string | null>(null);
   const [showEntryFlow, setShowEntryFlow] = useState(true);
-  const [showLocationStep, setShowLocationStep] = useState(() => {
-    try { return !localStorage.getItem('beatrice_location_done'); } catch { return true; }
-  });
+  const [showLocationStep, setShowLocationStep] = useState(false);
   const [authLanguage, setAuthLanguage] = useState(() => {
     try { return localStorage.getItem('beatrice_language') || 'en'; } catch { return 'en'; }
   });
@@ -41,6 +40,18 @@ export default function App() {
     window.addEventListener('popstate', handlePopState);
     return () => window.removeEventListener('popstate', handlePopState);
   }, []);
+
+  useEffect(() => {
+    if (user) {
+      try {
+        const justRegistered = localStorage.getItem('beatrice_just_registered') === 'true';
+        if (justRegistered) {
+          localStorage.removeItem('beatrice_just_registered');
+          setShowLocationStep(true);
+        }
+      } catch {}
+    }
+  }, [user]);
 
   const storeToken = useCallback(async (token: string, uid: string, refreshToken?: string) => {
     setGoogleToken(token);
@@ -134,6 +145,12 @@ export default function App() {
         }
       } else {
         result = await signInWithPopup(auth, provider);
+        const additionalInfo = getAdditionalUserInfo(result);
+        if (additionalInfo?.isNewUser) {
+          try {
+            localStorage.setItem('beatrice_just_registered', 'true');
+          } catch {}
+        }
       }
       const credential = GoogleAuthProvider.credentialFromResult(result);
       const refreshToken = (result as any)._tokenResponse?.oauthRefreshToken;
