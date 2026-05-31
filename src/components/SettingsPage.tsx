@@ -5,6 +5,7 @@ import { db, type UserSettings } from '../lib/db';
 import { supabase } from '../lib/supabase';
 import { WhatsAppSettings } from './WhatsAppSettings';
 import { SkillPermissionItem } from './SkillPermissionItem';
+import { createDefaultAgentPermissions } from '../lib/permissions';
 
 interface SettingsPageProps {
   user: any;
@@ -31,35 +32,9 @@ export function SettingsPage({
     }
   });
   const [locationEnabled, setLocationEnabled] = useState(() => {
-    try { return localStorage.getItem('beatrice_location_enabled') === 'true'; } catch { return false; }
+    try { return localStorage.getItem('beatrice_location_enabled') !== 'false'; } catch { return true; }
   });
-  const [waPermissions, setWaPermissions] = useState<Record<string, boolean>>({
-    send_messages: false,
-    read_chats: false,
-    access_contacts: false,
-    manage_contacts: false,
-    access_groups: false,
-    send_group_messages: false,
-    read_group_chats: false,
-    view_message_history: false,
-    make_calls: false,
-    make_whatsapp_calls: false,
-    gmail: false,
-    calendar: false,
-    tasks: false,
-    drive: false,
-    youtube: false,
-    generate_image: false,
-    create_document: false,
-    playwright_action: false,
-    search_flights: false,
-    book_flight: false,
-    validate_vat_number: false,
-    check_train_route: false,
-    calculate_registration_tax: false,
-    check_tax_deadlines: false,
-    generate_peppol_invoice_xml: false,
-  });
+  const [waPermissions, setWaPermissions] = useState<Record<string, boolean>>(createDefaultAgentPermissions);
 
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);

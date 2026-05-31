@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { db } from '../lib/db';
 import { startWhatsAppPairing, getWhatsAppStatus, disconnectWhatsApp } from '../lib/whatsappClient';
+import { createDefaultAgentPermissions } from '../lib/permissions';
 
 interface WhatsAppSettingsProps {
   userId: string;
@@ -10,14 +11,7 @@ export function WhatsAppSettings({ userId }: WhatsAppSettingsProps) {
   const [waStatus, setWaStatus] = useState<string>('not_found');
   const [waQrCode, setWaQrCode] = useState<string | null>(null);
   const [waPhone, setWaPhone] = useState<string | null>(null);
-  const [waPermissions, setWaPermissions] = useState<Record<string, boolean>>({
-    send_messages: false, read_chats: false, access_contacts: false, manage_contacts: false,
-    access_groups: false, send_group_messages: false, read_group_chats: false, view_message_history: false,
-    make_calls: false, make_whatsapp_calls: false, generate_image: true,
-    create_document: true, validate_vat_number: true, check_train_route: true,
-    calculate_registration_tax: true, check_tax_deadlines: true, generate_peppol_invoice_xml: true,
-    gmail: true, calendar: true, tasks: true, drive: true, youtube: true
-  });
+  const [waPermissions, setWaPermissions] = useState<Record<string, boolean>>(createDefaultAgentPermissions);
   const [waPairing, setWaPairing] = useState(false);
   const [pairingMethod, setPairingMethod] = useState<'qr' | 'phone'>('qr');
   const [phoneInput, setPhoneInput] = useState<string>('');

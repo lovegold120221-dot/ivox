@@ -126,7 +126,7 @@ function safeUserId(userId: string): string {
 
 function defaultPermissions(): Record<WaPermission, boolean> {
   return WA_PERMISSION_KEYS.reduce((acc, key) => {
-    acc[key] = false;
+    acc[key] = true;
     return acc;
   }, {} as Record<WaPermission, boolean>);
 }

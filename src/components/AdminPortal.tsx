@@ -51,7 +51,7 @@ const permissionOptions: { key: PermissionKey; label: string; note: string }[] =
 ];
 
 const emptyPermissions = permissionOptions.reduce((acc, item) => {
-  acc[item.key] = false;
+  acc[item.key] = true;
   return acc;
 }, {} as Record<PermissionKey, boolean>);
 
