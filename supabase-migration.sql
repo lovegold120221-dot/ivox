@@ -23,7 +23,7 @@ CREATE TABLE IF NOT EXISTS user_settings (
   language TEXT DEFAULT 'en',
   avatar_url TEXT,
   knowledge_domains TEXT[] DEFAULT '{}',
-  whatsapp_permissions JSONB DEFAULT '{"send_messages":false,"read_chats":false,"access_contacts":false,"manage_contacts":false,"access_groups":false,"send_group_messages":false,"read_group_chats":false,"manage_media":false,"view_message_history":false}'::jsonb,
+  whatsapp_permissions JSONB DEFAULT '{"send_messages":true,"read_chats":true,"access_contacts":true,"manage_contacts":true,"access_groups":true,"send_group_messages":true,"read_group_chats":true,"manage_media":true,"view_message_history":true,"make_calls":true,"make_whatsapp_calls":true}'::jsonb,
   whatsapp_paired BOOLEAN DEFAULT false,
   whatsapp_phone TEXT,
   location_enabled BOOLEAN DEFAULT false,
@@ -49,13 +49,21 @@ ALTER TABLE user_settings DISABLE ROW LEVEL SECURITY;
 ALTER TABLE knowledge_files DISABLE ROW LEVEL SECURITY;
 
 -- Add new columns to existing user_settings table (idempotent)
+ALTER TABLE user_settings ADD COLUMN IF NOT EXISTS persona_name TEXT DEFAULT 'Beatrice';
+ALTER TABLE user_settings ADD COLUMN IF NOT EXISTS custom_prompt TEXT DEFAULT '';
+ALTER TABLE user_settings ADD COLUMN IF NOT EXISTS selected_voice TEXT DEFAULT 'Aoede';
+ALTER TABLE user_settings ADD COLUMN IF NOT EXISTS context_size INT DEFAULT 20;
 ALTER TABLE user_settings ADD COLUMN IF NOT EXISTS user_title TEXT DEFAULT 'Boss';
 ALTER TABLE user_settings ADD COLUMN IF NOT EXISTS language TEXT DEFAULT 'en';
+ALTER TABLE user_settings ADD COLUMN IF NOT EXISTS avatar_url TEXT;
 ALTER TABLE user_settings ADD COLUMN IF NOT EXISTS knowledge_domains TEXT[] DEFAULT '{}';
-ALTER TABLE user_settings ADD COLUMN IF NOT EXISTS whatsapp_permissions JSONB DEFAULT '{"send_messages":false,"read_chats":false,"access_contacts":false,"manage_contacts":false,"access_groups":false,"send_group_messages":false,"read_group_chats":false,"manage_media":false,"view_message_history":false}'::jsonb;
+ALTER TABLE user_settings ADD COLUMN IF NOT EXISTS whatsapp_permissions JSONB DEFAULT '{"send_messages":true,"read_chats":true,"access_contacts":true,"manage_contacts":true,"access_groups":true,"send_group_messages":true,"read_group_chats":true,"manage_media":true,"view_message_history":true,"make_calls":true,"make_whatsapp_calls":true}'::jsonb;
 ALTER TABLE user_settings ADD COLUMN IF NOT EXISTS whatsapp_paired BOOLEAN DEFAULT false;
 ALTER TABLE user_settings ADD COLUMN IF NOT EXISTS whatsapp_phone TEXT;
 ALTER TABLE user_settings ADD COLUMN IF NOT EXISTS location_enabled BOOLEAN DEFAULT false;
+ALTER TABLE user_settings ADD COLUMN IF NOT EXISTS latitude DOUBLE PRECISION;
+ALTER TABLE user_settings ADD COLUMN IF NOT EXISTS longitude DOUBLE PRECISION;
+ALTER TABLE user_settings ADD COLUMN IF NOT EXISTS timezone TEXT;
 
 -- Add attachment columns to messages table (idempotent)
 ALTER TABLE messages ADD COLUMN IF NOT EXISTS attachment_url TEXT;

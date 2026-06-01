@@ -195,16 +195,21 @@ export class AudioRecorder {
   private analyser: AnalyserNode | null = null;
   private dataArray: Uint8Array | null = null;
   private onData: (base64: string) => void;
+  private isRecording = false;
+  private inputSampleRate = 16000;
 
   constructor(onData: (base64: string) => void) {
     this.onData = onData;
   }
 
   async start() {
+    this.stop();
     this.audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
     this.stream = await navigator.mediaDevices.getUserMedia({ audio: true });
     
     if (!this.audioContext) return;
+    this.isRecording = true;
+    this.inputSampleRate = this.audioContext.sampleRate;
     
     const source = this.audioContext.createMediaStreamSource(this.stream);
     
@@ -216,8 +221,9 @@ export class AudioRecorder {
 
     this.processor = this.audioContext.createScriptProcessor(2048, 1, 1);
     this.processor.onaudioprocess = (e) => {
+      if (!this.isRecording) return;
       const input = e.inputBuffer.getChannelData(0);
-      const resampled = this.downsampleBuffer(input, this.audioContext!.sampleRate, 16000);
+      const resampled = this.downsampleBuffer(input, this.inputSampleRate, 16000);
       const output = new Int16Array(resampled.length);
       for (let i = 0; i < resampled.length; i++) {
         const s = Math.max(-1, Math.min(1, resampled[i]));
@@ -284,6 +290,10 @@ export class AudioRecorder {
   }
 
   stop() {
+    this.isRecording = false;
+    if (this.processor) {
+      this.processor.onaudioprocess = null;
+    }
     if (this.processor && this.audioContext) {
       try {
         this.processor.disconnect();
@@ -319,5 +329,6 @@ export class AudioRecorder {
     this.silentSink = null;
     this.analyser = null;
     this.dataArray = null;
+    this.inputSampleRate = 16000;
   }
 }

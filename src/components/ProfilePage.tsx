@@ -442,7 +442,8 @@ export function ProfilePage({
       }
 
       if (sbError) {
-        console.warn('Supabase upsert returned error:', sbError);
+        const message = sbError.message || String(sbError);
+        console.warn(`Supabase profile sync skipped: ${message}. Local settings were saved.`);
       }
 
       try { localStorage.setItem('beatrice_userTitle', userTitle); } catch {}
