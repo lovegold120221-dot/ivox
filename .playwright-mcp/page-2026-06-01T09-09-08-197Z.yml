@@ -1,0 +1,12 @@
+- generic [ref=e4]:
+  - generic [ref=e9]: Beatrice
+  - generic [ref=e11]:
+    - img [ref=e13]
+    - heading "Voice Intelligence" [level=2] [ref=e17]
+    - paragraph [ref=e18]: Beatrice is a premium voice intelligence assistant by Eburon AI.
+  - generic [ref=e19]:
+    - generic [ref=e20]:
+      - button "Slide 1" [ref=e21] [cursor=pointer]
+      - button "Slide 2" [ref=e22] [cursor=pointer]
+      - button "Slide 3" [ref=e23] [cursor=pointer]
+    - button "Next" [ref=e24] [cursor=pointer]

@@ -1,0 +1,22 @@
+- main [ref=e44]:
+  - generic [ref=e45]:
+    - generic [ref=e46]:
+      - img "Beatrice" [ref=e49]
+      - generic [ref=e50]:
+        - generic [ref=e51]: Beatrice
+        - generic [ref=e52]: Powered by Eburon AI
+    - generic [ref=e54]:
+      - heading "Sign In" [level=2] [ref=e55]
+      - paragraph [ref=e56]: Welcome back. Enter your credentials.
+      - generic [ref=e57]:
+        - textbox "Email" [ref=e59]
+        - textbox "Password" [ref=e61]
+        - button "Sign In" [ref=e62] [cursor=pointer]
+      - generic [ref=e65]: or
+      - button "Continue with Google" [ref=e67] [cursor=pointer]:
+        - img [ref=e68]
+        - text: Continue with Google
+      - generic [ref=e73]:
+        - button "Forgot password?" [ref=e74] [cursor=pointer]
+        - button "Create account" [ref=e75] [cursor=pointer]
+    - generic [ref=e76]: Secure Connection

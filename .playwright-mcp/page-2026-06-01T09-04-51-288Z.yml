@@ -1,0 +1,12 @@
+- generic [ref=e4]:
+  - generic [ref=e9]: Beatrice
+  - generic [ref=e25]:
+    - img [ref=e27]
+    - heading "Smart Integration" [level=2] [ref=e32]
+    - paragraph [ref=e33]: Connect Google Workspace and WhatsApp for seamless, secure, hands-free voice operations.
+  - generic [ref=e19]:
+    - generic [ref=e20]:
+      - button "Slide 1" [ref=e21] [cursor=pointer]
+      - button "Slide 2" [ref=e22] [cursor=pointer]
+      - button "Slide 3" [ref=e23] [cursor=pointer]
+    - button "Next" [active] [ref=e24] [cursor=pointer]

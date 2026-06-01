@@ -252,6 +252,6 @@
 - CSS/UI preservation: No CSS changes to stylesheets. Added inline Tailwind classes for the hidden-state wrapper. All page UIs render identically.
 - Real data/API credential check: No credentials changed.
 - Known issues:
-  - The pre-existing `conversationBufferRef` and `_isMountedRef` TS errors remain (unrelated)
-  - When user logs out, the cleanup `useEffect` calls `stopSession()`, which triggers `onclose`. Since `manuallyDisconnectedRef` is false, it will attempt reconnect briefly but the unmounted component will suppress the effects.
-- Next step: None — session now stays alive across page navigation, and the power button properly stops it without immediate restart.
+  - Pre-existing TS error in `server/whatsapp.ts` remains (unrelated)
+  - Firebase Auth on `voxx-zeta.vercel.app` takes ~20s to initialize because the domain isn't in Firebase's authorized list, causing a temporary loading screen (which may be perceived as a "whitescreen")
+- Next step: None — all requested fixes implemented and verified.
