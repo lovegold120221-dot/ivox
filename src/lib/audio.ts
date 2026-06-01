@@ -103,8 +103,21 @@ export class AmbientConversationBed {
   private gain: GainNode | null = null;
   private baseVolume = 0.2;
   private isDucked = false;
+  private stopped = false;
+
+  /**
+   * Guard that stops execution if stop() was called during an async gap.
+   * Call after every `await` to prevent race conditions with React lifecycle.
+   */
+  private checkStopped(): boolean {
+    if (this.stopped) {
+      return true;
+    }
+    return false;
+  }
 
   async start(volume = 0.2) {
+    this.stopped = false;
     this.baseVolume = this.clampVolume(volume);
 
     if (this.audioContext && this.audioContext.state !== 'closed') {
@@ -120,12 +133,19 @@ export class AmbientConversationBed {
     let buffer: AudioBuffer;
     try {
       const resp = await fetch('/bgm-office.mp3');
+      if (this.checkStopped()) { this.cleanupAfterError(); return; }
       const arrayBuffer = await resp.arrayBuffer();
+      if (this.checkStopped()) { this.cleanupAfterError(); return; }
+      if (!this.audioContext) { console.warn('Ambient bed audio context was closed during fetch'); return; }
       buffer = await this.audioContext.decodeAudioData(arrayBuffer);
     } catch (e) {
       console.error('Failed to load bgm-office.mp3', e);
+      this.cleanupAfterError();
       return;
     }
+
+    if (this.checkStopped()) { this.cleanupAfterError(); return; }
+    if (!this.audioContext) return;
 
     this.source = this.audioContext.createBufferSource();
     this.source.buffer = buffer;
@@ -138,6 +158,15 @@ export class AmbientConversationBed {
     this.gain.connect(this.audioContext.destination);
     this.source.start();
     this.applyGain();
+  }
+
+  private cleanupAfterError() {
+    if (this.audioContext && this.audioContext.state !== 'closed') {
+      try { this.audioContext.close(); } catch {}
+    }
+    this.audioContext = null;
+    this.source = null;
+    this.gain = null;
   }
 
   setVolume(volume: number) {
@@ -161,6 +190,8 @@ export class AmbientConversationBed {
   }
 
   stop() {
+    this.stopped = true;
+
     if (this.source) {
       try {
         this.source.stop();

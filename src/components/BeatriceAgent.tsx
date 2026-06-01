@@ -519,17 +519,12 @@ export function BeatriceAgent({
   const isNewTurnRef = useRef(true);
 
   // --- Conversation persistence for reconnection resilience ---
-  const conversationBufferRef = useRef<string[]>([]);
+  const maxReconnectAttempts = 5;
   const reconnectAttemptsRef = useRef(0);
   const reconnectTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const reconnectContextRef = useRef<string>('');
-  const _isMountedRef = useRef(true);
-  useEffect(() => {
-    _isMountedRef.current = true;
-    return () => { _isMountedRef.current = false; };
-  }, []);
-  const MAX_RECONNECT_ATTEMPTS = 5;
-  const RECONNECT_BASE_DELAY_MS = 1000;
+  const lastSessionIdRef = useRef<string>('');
+  const reconnectBackoffRef = useRef<number>(1000); // 1s initial backoff
   const [reconnecting, setReconnecting] = useState(false);
 
   const buildConversationContext = useCallback(() => {
@@ -560,8 +555,13 @@ export function BeatriceAgent({
       ambientBedRef.current = new AmbientConversationBed();
     }
 
-    await ambientBedRef.current.start(ambientGainFromLevel(ambientVolume));
-    ambientBedRef.current.duck(isAgentSpeakingRef.current);
+    try {
+      await ambientBedRef.current.start(ambientGainFromLevel(ambientVolume));
+      // Ref may have been nulled by stopAmbientBed during the async start
+      ambientBedRef.current?.duck(isAgentSpeakingRef.current);
+    } catch (e) {
+      console.warn('Ambient room tone did not start:', e);
+    }
   }, [ambientEnabled, ambientGainFromLevel, ambientVolume]);
 
   const stopAmbientBed = useCallback(() => {
@@ -577,9 +577,7 @@ export function BeatriceAgent({
   }, []);
 
   const duckAmbientBriefly = useCallback(() => {
-    if (!ambientBedRef.current) return;
-
-    ambientBedRef.current.duck(true);
+    ambientBedRef.current?.duck(true);
     if (ambientDuckTimeoutRef.current) clearTimeout(ambientDuckTimeoutRef.current);
     ambientDuckTimeoutRef.current = setTimeout(() => {
       ambientBedRef.current?.duck(isAgentSpeakingRef.current);
@@ -1479,6 +1477,15 @@ export function BeatriceAgent({
 
   const startSession = async () => {
     if (sessionStartingRef.current || isActive || connecting) return;
+
+    // Backoff: if reconnecting too fast, wait with exponential backoff
+    if (reconnectAttemptsRef.current > 0) {
+      const backoff = reconnectBackoffRef.current;
+      console.log(`[Reconnect] Attempt ${reconnectAttemptsRef.current + 1}, backing off ${backoff}ms`);
+      await new Promise(resolve => setTimeout(resolve, backoff));
+      reconnectBackoffRef.current = Math.min(backoff * 1.5, 15000); // up to 15s
+      if (sessionStartingRef.current || isActive || connecting) return;
+    }
 
     sessionIdRef.current = crypto.randomUUID();
     pendingUserTurnRef.current = null;
@@ -3392,6 +3399,21 @@ outputAudioTranscription: {},
           onclose: (e: any) => {
             console.log("Live session closed:", e?.reason || e);
             stopSession();
+            // Auto-reconnect with backoff for unexpected disconnects
+            if (reconnectAttemptsRef.current < maxReconnectAttempts) {
+              reconnectAttemptsRef.current++;
+              const delay = reconnectBackoffRef.current;
+              reconnectBackoffRef.current = Math.min(delay * 1.5, 15000);
+              setReconnecting(true);
+              clearTimeout(reconnectTimeoutRef.current!);
+              reconnectTimeoutRef.current = setTimeout(() => {
+                setReconnecting(false);
+                startSession();
+              }, delay);
+            } else {
+              console.log('[Reconnect] Max reconnect attempts reached');
+              setReconnecting(false);
+            }
           },
 
           onerror: (err: any) => {
@@ -3426,6 +3448,9 @@ outputAudioTranscription: {},
       lastSilenceFillerStyleRef.current = null;
       setIsActive(true);
       setConnecting(false);
+      setReconnecting(false);
+      reconnectAttemptsRef.current = 0;
+      reconnectBackoffRef.current = 1000;
       sessionStartingRef.current = false;
 
       setTimeout(() => {
