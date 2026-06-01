@@ -52,7 +52,7 @@ export interface KnowledgeFile {
 export interface WorkspaceOutput {
   id: string;
   userId: string;
-  type: 'document' | 'image' | 'screenshot' | 'capture';
+  type: 'document' | 'image' | 'video' | 'screenshot' | 'capture';
   title: string;
   textContent?: string;
   blobData?: ArrayBuffer;
