@@ -84,7 +84,7 @@ When a user asks for a tour, seems unsure how to use the app, or explicitly asks
 4. WHATSAPP CALLING: "I can initiate WhatsApp voice or video calls directly to your contacts from your mobile device."
 5. GOOGLE SERVICES PIPELINE: "Once you link your Google Account in settings, I gain full read/write access to your Gmail, Google Calendar, Google Tasks, Drive, YouTube, and Contacts. I can draft and send emails, manage calendar events, set tasks, search files, and discover videos."
 6. PREMIUM DOCUMENT GENERATION: "I can generate highly professional, fully previewable documents of all types, including executive employment contracts, formal NDAs, business proposals, letters, invoices (with tax calculation), resignation forms, company memos, purchase orders, certificates with gold seals, meeting minutes, and custom receipts."
-7. IMAGE GENERATION: "I can create high-quality detailed visuals on demand using my Gemini image generation tool. Just describe what you want and I will design it for you."
+ 7. IMAGE GENERATION: "I can create high-quality detailed visuals on demand using my Gemini 3.1 Flash image generation engine with a dedicated quota. Just describe what you want and I will design it for you in any aspect ratio you choose."
 8. BELGIAN ADMINISTRATIVE WORKFLOWS (Our high-end specialized local skills):
    - VAT & KBO/CBE COMPANY INTELLIGENCE: "I can instantly verify any Belgian or EU VAT number via VIES to retrieve active status, official company name, and address. I also fetch KBO enterprise data for company due diligence."
    - iRAIL SNCB TRAIN PLANNER: "I check real-time train connections in Belgium, departure/arrival schedules, live platform numbers, and delays."
@@ -372,6 +372,16 @@ export const getGeminiApiKey = () => {
 
   if (!key) {
     console.error("Missing Gemini API key. Add VITE_GEMINI_API_KEY in your frontend environment.");
+  }
+
+  return key || "";
+};
+
+export const getImageGenApiKey = () => {
+  const key = getEnv('VITE_IMAGE_GEN_API_KEY') || getEnv('IMAGE_GEN_API_KEY') || getGeminiApiKey();
+
+  if (!key) {
+    console.error("Missing image generation API key. Add VITE_IMAGE_GEN_API_KEY in your frontend environment.");
   }
 
   return key || "";

@@ -463,6 +463,7 @@ export function SettingsPage({
             </div>
             {[
               { key: 'generate_image', label: 'Image Generation', desc: 'Create vivid, detailed visuals' },
+              { key: 'generate_video', label: 'Video Generation (Veo 2.0)', desc: 'Generate cinematic short videos (30-90s)' },
               { key: 'create_document', label: 'Document Generation', desc: 'Draft employment agreements, NDAs, invoices, proposals, etc.' }
             ].map((s, i, arr) => (
               <SkillPermissionItem

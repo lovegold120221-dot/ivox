@@ -15,6 +15,7 @@ export const DEFAULT_AGENT_PERMISSIONS: Record<string, boolean> = {
   drive: true,
   youtube: true,
   generate_image: true,
+  generate_video: true,
   create_document: true,
   playwright_action: true,
   search_flights: true,

@@ -1,6 +1,11 @@
 import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';
+import { randomUUID } from 'crypto';
+import { spawn } from 'child_process';
+import path from 'path';
+import fs from 'fs';
+import { fileURLToPath } from 'url';
 import { WhatsAppManager } from './whatsapp';
 import * as waTools from './whatsapp-tools';
 import { runPlaywrightAction } from './playwright-tool';
@@ -298,6 +303,113 @@ app.post('/api/whatsapp/webhook/:userId', (req, res) => {
     res.status(500).json({ error: err.message || 'Webhook ingest failed' });
   }
 });
+
+// ── Veo 2.0 Video Generation ──
+
+interface VeoTask {
+  id: string;
+  prompt: string;
+  status: 'processing' | 'done' | 'error';
+  result?: any;
+  error?: string;
+  createdAt: number;
+}
+
+const veoTasks = new Map<string, VeoTask>();
+
+const SANDBOX_ROOT = process.env.SANDBOX_ROOT || './.sandbox';
+const VIDEOS_DIR = path.join(SANDBOX_ROOT, 'videos');
+const __VEODIR = path.dirname(fileURLToPath(import.meta.url));
+
+app.post('/api/generate-video', async (req, res) => {
+  try {
+    const prompt = typeof req.body?.prompt === 'string' ? req.body.prompt.trim() : '';
+    if (!prompt || prompt.length < 3) {
+      res.status(400).json({ error: 'prompt must be at least 3 characters' });
+      return;
+    }
+
+    const taskId = randomUUID();
+    const task: VeoTask = { id: taskId, prompt, status: 'processing', createdAt: Date.now() };
+    veoTasks.set(taskId, task);
+
+    const outputPath = path.join(VIDEOS_DIR, `${taskId}.mp4`);
+    fs.mkdirSync(VIDEOS_DIR, { recursive: true });
+
+    // Spawn Python script in background
+    const pyProc = spawn('python3', [
+      path.join(__VEODIR, 'veo.py'),
+      '--prompt', prompt,
+      '--output', outputPath,
+    ], {
+      stdio: ['pipe', 'pipe', 'pipe'],
+      env: { ...process.env },
+    });
+
+    let stdout = '';
+    let stderr = '';
+
+    pyProc.stdout.on('data', (data: Buffer) => { stdout += data.toString(); });
+    pyProc.stderr.on('data', (data: Buffer) => { stderr += data.toString(); });
+
+    pyProc.on('close', (code) => {
+      if (code !== 0) {
+        task.status = 'error';
+        task.error = stderr.slice(0, 500) || `Python exited with code ${code}`;
+        console.error(`Veo generation failed for task ${taskId}:`, stderr.slice(0, 300));
+        return;
+      }
+
+      try {
+        const result = JSON.parse(stdout.trim());
+        if (result.error) {
+          task.status = 'error';
+          task.error = result.error;
+        } else {
+          task.status = 'done';
+          task.result = {
+            ...result,
+            videoUrl: `/sandbox/videos/${taskId}.mp4`,
+          };
+        }
+      } catch (parseErr: any) {
+        task.status = 'error';
+        task.error = `Failed to parse Python output: ${parseErr.message}`;
+      }
+    });
+
+    pyProc.on('error', (err) => {
+      task.status = 'error';
+      task.error = `Failed to start Python: ${err.message}`;
+    });
+
+    // Return immediately with task ID
+    res.json({ taskId, status: 'processing' });
+
+  } catch (err: any) {
+    console.error('Video generation error:', err);
+    res.status(500).json({ error: err.message || 'Video generation failed' });
+  }
+});
+
+app.get('/api/generate-video/status/:taskId', (req, res) => {
+  const task = veoTasks.get(req.params.taskId);
+  if (!task) {
+    res.status(404).json({ error: 'Task not found' });
+    return;
+  }
+
+  if (task.status === 'done') {
+    res.json({ status: 'done', ok: true, ...task.result });
+  } else if (task.status === 'error') {
+    res.json({ status: 'error', error: task.error });
+  } else {
+    res.json({ status: 'processing', taskId: task.id });
+  }
+});
+
+// Serve generated videos
+app.use('/sandbox/videos', express.static(VIDEOS_DIR));
 
 // ── Shutdown hook ──
 

@@ -18,8 +18,9 @@ import { duffelClient } from '../lib/duffelClient';
 import { createLiveUserTurn, mergeTranscriptText, toLiveUserMessage, type LiveUserTurn } from '../lib/liveTranscript';
 import { isGoogleLinked } from './EntryFlow';
 import { googleTools, googleTokenRequiredTools, additionalToolDeclarations } from '../lib/toolDeclarations';
-import { VOICE_PERSONALITY_PROMPT, GLOBAL_KNOWLEDGE_BASE, PERSONA_REINFORCEMENT, getEnv, getGeminiApiKey, escapeHtml, clampTemplateContent, extractHtmlArtifact } from '../lib/constants';
+import { VOICE_PERSONALITY_PROMPT, GLOBAL_KNOWLEDGE_BASE, PERSONA_REINFORCEMENT, getEnv, getGeminiApiKey, getImageGenApiKey, escapeHtml, clampTemplateContent, extractHtmlArtifact } from '../lib/constants';
 import { createDefaultAgentPermissions } from '../lib/permissions';
+import { generateVideoWithPolling } from '../lib/veoClient';
 
 const ChatPage = lazy(() => import('./ChatPage').then(module => ({ default: module.ChatPage })));
 const VideoPage = lazy(() => import('./VideoPage').then(module => ({ default: module.VideoPage })));
@@ -174,14 +175,14 @@ interface GeminiImageRequest {
 }
 
 const generateImageWithGemini = async (request: GeminiImageRequest): Promise<{ imageBytesBase64: string, mimeType: string }> => {
-  const apiKey = getGeminiApiKey();
+  const apiKey = getImageGenApiKey();
 
   if (!apiKey) {
-    throw new Error('Missing Gemini API key. Add VITE_GEMINI_API_KEY to your environment.');
+    throw new Error('Missing Gemini API key. Add VITE_GEMINI_API_KEY or VITE_IMAGE_GEN_API_KEY to your environment.');
   }
 
-  // Uses the new Gemini 2.5 Flash image generation API
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
+  // Uses the Gemini 3.1 Flash image generation model with a dedicated API key
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-image:generateContent?key=${apiKey}`;
 
   const payload = {
     contents: [
@@ -233,6 +234,22 @@ const generateImageWithGemini = async (request: GeminiImageRequest): Promise<{ i
   return {
     imageBytesBase64: inlineData.data,
     mimeType: inlineData.mimeType || 'image/png'
+  };
+};
+
+const generateVideoWithVeo = async (prompt: string): Promise<{ videoUrl: string, fileSize: number, ok: boolean }> => {
+  const result = await generateVideoWithPolling(prompt, (status) => {
+    console.log(`Veo status: ${status}`);
+  });
+
+  if (result.error) {
+    throw new Error(result.error);
+  }
+
+  return {
+    videoUrl: result.videoUrl || '',
+    fileSize: result.fileSize || 0,
+    ok: true,
   };
 };
 
@@ -1586,6 +1603,7 @@ ${(() => {
     make_calls: 'Make Phone Calls',
     make_whatsapp_calls: 'Make WhatsApp Calls',
     generate_image: 'Generate Images',
+    generate_video: 'Generate Videos (Veo 2.0)',
     create_document: 'Create Documents (Contracts, Invoices, NDAs, etc.)',
     validate_vat_number: 'VAT Verification & Company Lookup',
     check_train_route: 'iRail Train Connection Planner',
@@ -1645,9 +1663,15 @@ The create_document tool will:
 4. Display it in the workspace.
 
 IMAGE GENERATION RULE:
-When the user asks you to create, draw, generate, or paint an image/picture, you MUST call the generate_image tool. Provide a highly detailed visual prompt.
+When the user asks you to create, draw, generate, or paint an image/picture, you MUST call the generate_image tool. Provide a highly detailed visual prompt. You are using the Gemini 3.1 Flash Image model with a dedicated API key for best quality.
 When you call generate_image, you MUST use filler words to tell the user you are working on it, like "Okay, drawing that for you now, please hold on..."
 Once the image is generated, confirm completion by saying "Done! I've placed the image in the workspace."
+
+VIDEO GENERATION RULE:
+When the user asks you to create, generate, or make a video/clip/animation, you MUST call the generate_video tool. You are using Google Veo 2.0 via Vertex AI with ADC authentication.
+When you call generate_video, you MUST use filler words to tell the user you are working on it, like "Alright, rendering that video now — give me about a minute..."
+The video takes 30-90 seconds to generate. Once complete, say "Your video is ready — check the workspace!"
+If there's a permission error, tell the user to enable Video Generation in Settings → Skills.
 
 Never generate the full document inside your spoken reply.
 Never mention HTML to the user.
@@ -2260,12 +2284,23 @@ ${PERSONA_REINFORCEMENT}
                 },
                 {
                   name: "generate_image",
-                  description: "Generate a beautiful high-quality image via the Gemini API. Use this when the user asks you to create, generate, draw, or paint an image. IMPORTANT: You must act as a prompt engineer and expand the user's short request into a highly detailed, descriptive, and imaginative prompt (at least 2-3 sentences) describing lighting, style, and composition to get the best visual result.",
+                  description: "Generate a beautiful high-quality image via the Gemini 3.1 Flash Image model with a dedicated API key. Use this when the user asks you to create, generate, draw, or paint an image. IMPORTANT: You must act as a prompt engineer and expand the user's short request into a highly detailed, descriptive, and imaginative prompt (at least 2-3 sentences) describing lighting, style, and composition to get the best visual result.",
                   parameters: {
                     type: Type.OBJECT,
                     properties: {
                       prompt: { type: Type.STRING, description: "Your expanded, highly detailed description of the image to generate (minimum 2-3 sentences)." },
                       aspectRatio: { type: Type.STRING, description: "Aspect ratio, one of '1:1', '3:4', '4:3', '9:16', '16:9'. Default is '1:1'." }
+                    },
+                    required: ["prompt"]
+                  }
+                },
+                {
+                  name: "generate_video",
+                  description: "Generate a cinematic high-quality video using Veo 2.0 via Vertex AI. The video generation takes 30-90 seconds — tell the user you are working on it. You must expand the user's short request into a highly detailed visual prompt describing subject, setting, lighting, camera movement, and mood. Returns a URL to the generated MP4 video.",
+                  parameters: {
+                    type: Type.OBJECT,
+                    properties: {
+                      prompt: { type: Type.STRING, description: "Your expanded, highly detailed visual prompt for the video (minimum 2-3 sentences): subject, setting, lighting, camera motion, mood." }
                     },
                     required: ["prompt"]
                   }
@@ -2857,6 +2892,38 @@ outputAudioTranscription: {},
                         result = { ok: false, error: e.message || 'Image generation failed' };
                       }
                     }
+                    } else if (callName === 'generate_video') {
+                      if (!waPermissions.generate_video) {
+                        result = { error: "Video generation permission is disabled. Please enable it in Settings → Skills section." };
+                      } else {
+                        const args = call.args as any;
+                        const prompt = String(args.prompt || 'A beautiful cinematic video');
+                        const generationTaskId = crypto.randomUUID();
+
+                        try {
+                          setGeneratedDocumentTask(generationTaskId, 'Video Generation', 'Rendering your video with Veo 2.0... (30-90 seconds)', 'working');
+
+                          const videoResult = await generateVideoWithVeo(prompt);
+
+                          // Build absolute video URL (sandbox server on port 4200)
+                          const sandboxUrl = getEnv('VITE_SANDBOX_URL') || 'http://localhost:4200';
+                          const videoUrl = videoResult.videoUrl
+                            ? `${sandboxUrl}${videoResult.videoUrl}`
+                            : '';
+
+                          // Build a viewable HTML page with the video embedded
+                          const videoHtml = `<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${prompt.substring(0, 60)}</title><style>body{margin:0;min-height:100vh;background:#0d0a08;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:20px;font-family:system-ui,sans-serif}video{max-width:100%;max-height:85vh;border-radius:16px;box-shadow:0 8px 40px rgba(0,0,0,0.5)}.caption{color:#d0a78b;font-size:14px;margin-top:16px;text-align:center;max-width:600px;line-height:1.5}.label{color:#6b5d53;font-size:11px;margin-top:8px;text-transform:uppercase;letter-spacing:0.1em}</style></head><body><video src="${videoUrl}" controls autoplay loop muted playsinline><p>Your browser does not support video.</p></video><p class="caption">${prompt.replace(/"/g, '&quot;')}</p><p class="label">Generated by Beatrice · Eburon AI · Veo 2.0</p></body></html>`;
+
+                          // Set the document viewer to show the actual video, not just status text
+                          setActiveDocument({ title: prompt.substring(0, 50), content: videoHtml, fileType: 'html' });
+                          setShowDocumentViewer(true);
+
+                          result = { ok: true, title: prompt.substring(0, 50), content: videoHtml };
+                        } catch (e: any) {
+                          setGeneratedDocumentTask(generationTaskId, 'Video Generation', 'Failed to generate video.', 'done');
+                          result = { ok: false, error: e.message || 'Video generation failed' };
+                        }
+                      }
                     } else if (callName === 'create_document') {
                       if (!waPermissions.create_document) {
                         result = { error: "Document creation permission is disabled. Please enable it in Settings → Skills section." };

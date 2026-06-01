@@ -563,6 +563,17 @@ export const additionalToolDeclarations: FunctionDeclaration[] = [
     }
   },
   {
+    name: "generate_video",
+    description: "Generate a cinematic high-quality video using Veo 2.0 via Vertex AI. The video generation takes 30-90 seconds — tell the user you are working on it. You must expand the user's short request into a highly detailed visual prompt describing subject, setting, lighting, camera movement, and mood. Returns a URL to the generated MP4 video.",
+    parameters: {
+      type: Type.OBJECT,
+      properties: {
+        prompt: { type: Type.STRING, description: "Your expanded, highly detailed visual prompt for the video (minimum 2-3 sentences): subject, setting, lighting, camera motion, mood." }
+      },
+      required: ["prompt"]
+    }
+  },
+  {
     name: "validate_vat_number",
     description: "Instantly verify a Belgian or EU VAT number via the VIES system. Returns company name, address, and active status if valid. You can use this for KBO/BCE company lookup by passing the company number with BE country code.",
     parameters: {
