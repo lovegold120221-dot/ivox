@@ -112,6 +112,7 @@ interface WaSession {
   reconnecting: boolean;
   saveTimer: NodeJS.Timeout | null;
   reconnectTimer?: NodeJS.Timeout | null;
+  keepaliveTimer?: NodeJS.Timeout | null;
 }
 
 const logger = P({ level: process.env.WA_LOG_LEVEL || 'silent' });
@@ -255,8 +256,8 @@ export class WhatsAppManager {
 
     entry.reconnecting = true;
     
-    // Calculate backoff delay: 2s, 5s, 10s, 30s, up to 60s max
-    const delays = [2000, 5000, 10000, 30000, 60000];
+    // Calculate backoff delay: 1s, 2s, 5s, 10s, 20s, then 30s indefinitely
+    const delays = [1000, 2000, 5000, 10000, 20000, 30000];
     const delay = delays[Math.min(attempt, delays.length - 1)];
 
     console.log(`[WhatsApp] Scheduling reconnection for ${userId} in ${delay}ms (attempt ${attempt + 1})`);
@@ -271,6 +272,7 @@ export class WhatsAppManager {
       try {
         console.log(`[WhatsApp] Attempting to reconnect session for ${userId}...`);
         await this.startSession(userId);
+        console.log(`[WhatsApp] Reconnection successful for ${userId} after ${attempt + 1} attempt(s)`);
       } catch (error: any) {
         console.error(`[WhatsApp] Reconnection attempt ${attempt + 1} failed for ${userId}:`, error.message);
         
@@ -279,7 +281,7 @@ export class WhatsAppManager {
         if (activeEntry === entry) {
           activeEntry.status = 'error';
           activeEntry.error = error.message || 'Reconnect failed';
-          // Trigger the next retry
+          // Keep retrying indefinitely with backoff capped at 30s
           this.reconnect(userId, attempt + 1);
         }
       }
@@ -296,6 +298,7 @@ export class WhatsAppManager {
     if (entry) {
       this.clearSaveTimer(entry);
       this.clearReconnectTimer(entry);
+      this.clearKeepaliveTimer(entry);
       try {
         entry.sock?.end?.(undefined);
       } catch {}
@@ -408,7 +411,27 @@ export class WhatsAppManager {
           entry.qrRaw = null;
           entry.error = null;
           entry.phone = sock.user?.id ? jidNumber(sock.user.id) : 'connected';
+          entry.reconnecting = false;
           console.log(`WhatsApp paired for user ${userId}: ${entry.phone}`);
+
+          // Start keepalive pings to detect stale connections early
+          this.clearKeepaliveTimer(entry);
+          entry.keepaliveTimer = setInterval(async () => {
+            const currentEntry = this.sessions.get(userId);
+            if (currentEntry !== entry || entry.status !== 'paired') {
+              this.clearKeepaliveTimer(entry);
+              return;
+            }
+            try {
+              await sock.sendPresenceUpdate('available');
+            } catch {
+              // Connection is likely dead — force a close to trigger reconnect
+              try { sock.end?.(); } catch {}
+              entry.status = 'error';
+              entry.error = 'Keepalive failed, reconnecting...';
+              this.reconnect(userId, 0);
+            }
+          }, 30_000);
         }
 
         if (connection === 'close') {
@@ -418,6 +441,7 @@ export class WhatsAppManager {
           entry.error = loggedOut ? null : (lastDisconnect?.error?.message || 'WhatsApp connection closed');
           entry.sock = null;
           this.clearSaveTimer(entry);
+          this.clearKeepaliveTimer(entry);
 
           if (!loggedOut) {
             this.reconnect(userId, 0);
@@ -827,6 +851,7 @@ export class WhatsAppManager {
     for (const entry of this.sessions.values()) {
       this.clearSaveTimer(entry);
       this.clearReconnectTimer(entry);
+      this.clearKeepaliveTimer(entry);
       try {
         writeSessionData(entry);
         entry.sock?.end?.(undefined);
@@ -846,6 +871,13 @@ export class WhatsAppManager {
     if (entry.reconnectTimer) {
       clearTimeout(entry.reconnectTimer);
       entry.reconnectTimer = null;
+    }
+  }
+
+  private clearKeepaliveTimer(entry: WaSession) {
+    if (entry.keepaliveTimer) {
+      clearInterval(entry.keepaliveTimer);
+      entry.keepaliveTimer = null;
     }
   }
 
