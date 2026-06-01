@@ -3,9 +3,11 @@
 ## Commands
 
 ```bash
-npm run dev      # Start dev server on port 3000, binds 0.0.0.0
+npm run dev      # Start frontend dev server (3000)
+npm run dev:api  # Start backend server (tsx server/index.ts)
+npm run dev:full # Start both backend and frontend
 npm run build    # Production build via Vite
-npm run lint     # Typecheck only (tsc --noEmit) — no ESLint, no Prettier
+npm run lint     # Typecheck only (tsc --noEmit)
 ```
 
 There is no test framework, no CI, and no pre-commit hooks.

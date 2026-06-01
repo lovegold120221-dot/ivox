@@ -1,0 +1,40 @@
+{
+  "project_info": {
+    "project_number": "874569824011",
+    "firebase_url": "https://eburon-ai-beatrice-default-rtdb.europe-west1.firebasedatabase.app",
+    "project_id": "eburon-ai-beatrice",
+    "storage_bucket": "eburon-ai-beatrice.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:874569824011:android:5b7bd8d06245ee9db0140e",
+        "android_client_info": {
+          "package_name": "beatrice.eburon.ai"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "874569824011-7nh3ubuipkair2j19bautrt75n4f2bds.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAvuazKtAbpyqrC3OWtuOQUG5w1zRLvFxs"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "108158211955240245523",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
