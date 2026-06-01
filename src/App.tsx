@@ -219,54 +219,57 @@ export default function App() {
     );
   }
 
-  if (currentPath === '/adminportal') {
-    return (
-      <AdminPortal
-        user={user}
-        onBack={() => {
-          window.history.pushState(null, '', '/');
-          window.dispatchEvent(new PopStateEvent('popstate'));
-        }}
-        onLogout={handleLogout}
-      />
-    );
-  }
-
-  if (currentPath === '/settings') {
-    return (
-      <SettingsPage
-        user={user}
-        googleToken={googleToken}
-        onLogin={handleLogin}
-        onBack={() => {
-          window.history.pushState(null, '', '/');
-          window.dispatchEvent(new PopStateEvent('popstate'));
-        }}
-      />
-    );
-  }
-
-  if (currentPath === '/profile') {
-    return (
-      <ProfilePage
-        onClose={() => {
-          window.history.pushState(null, '', '/');
-          window.dispatchEvent(new PopStateEvent('popstate'));
-        }}
-      />
-    );
-  }
+  const isMainPage = currentPath === '/';
 
   return (
-    <BeatriceAgent
-      user={user}
-      googleToken={googleToken}
-      setGoogleToken={setGoogleToken}
-      storeToken={storeToken}
-      authLanguage={authLanguage}
-      onSetLanguage={setAuthLanguage}
-      onLogout={handleLogout}
-      onLogin={handleLogin}
-    />
+    <>
+      {/* Always mounted — mic + audio + session survive page navigation */}
+      <div
+        className={isMainPage ? '' : 'fixed inset-0 pointer-events-none opacity-0'}
+        aria-hidden={!isMainPage}
+      >
+        <BeatriceAgent
+          user={user}
+          googleToken={googleToken}
+          setGoogleToken={setGoogleToken}
+          storeToken={storeToken}
+          authLanguage={authLanguage}
+          onSetLanguage={setAuthLanguage}
+          onLogout={handleLogout}
+          onLogin={handleLogin}
+        />
+      </div>
+
+      {/* Overlay pages on top — BeatriceAgent stays alive underneath */}
+      {currentPath === '/adminportal' && (
+        <AdminPortal
+          user={user}
+          onBack={() => {
+            window.history.pushState(null, '', '/');
+            window.dispatchEvent(new PopStateEvent('popstate'));
+          }}
+          onLogout={handleLogout}
+        />
+      )}
+      {currentPath === '/settings' && (
+        <SettingsPage
+          user={user}
+          googleToken={googleToken}
+          onLogin={handleLogin}
+          onBack={() => {
+            window.history.pushState(null, '', '/');
+            window.dispatchEvent(new PopStateEvent('popstate'));
+          }}
+        />
+      )}
+      {currentPath === '/profile' && (
+        <ProfilePage
+          onClose={() => {
+            window.history.pushState(null, '', '/');
+            window.dispatchEvent(new PopStateEvent('popstate'));
+          }}
+        />
+      )}
+    </>
   );
 }

@@ -525,6 +525,7 @@ export function BeatriceAgent({
   const reconnectContextRef = useRef<string>('');
   const lastSessionIdRef = useRef<string>('');
   const reconnectBackoffRef = useRef<number>(1000); // 1s initial backoff
+  const manuallyDisconnectedRef = useRef(false);
   const [reconnecting, setReconnecting] = useState(false);
 
   const buildConversationContext = useCallback(() => {
@@ -886,6 +887,23 @@ export function BeatriceAgent({
     } else if (toolName === 'send_gmail_message' && result) {
       formattedContent = `✅ Email sent successfully${result.id ? ' (ID: ' + result.id + ')' : ''}`;
       fileType = 'txt';
+    } else if (toolName === 'whatsapp_action' && result?.formattedConversation) {
+      // Render WhatsApp conversation as a styled chat transcript
+      const contactName = escapeHtml(result.conversationWith || 'Contact');
+      const groupName = result.groupName ? escapeHtml(result.groupName) : null;
+      const msgCount = result.messageCount || 0;
+      const convLines = (result.formattedConversation || '')
+        .split('\n')
+        .map((line: string) => escapeHtml(line))
+        .join('<br>');
+      const isGroup = !!result.groupName;
+      formattedContent = `<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>WhatsApp ${isGroup ? 'Group' : 'Conversation'}</title><style>body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:#0d0a08;color:#f0e6df;padding:20px}.header{margin-bottom:16px}h2{margin:0 0 2px;font-size:18px;color:#d0a78b}.sub{font-size:12px;color:#6b5d53}.chatbox{background:#17110e;border:1px solid rgba(208,167,139,.12);border-radius:14px;padding:16px;font-family:"SF Mono",Monaco,"Cascadia Code",monospace;font-size:13px;line-height:1.7;white-space:pre-wrap;overflow-x:auto}.you{color:#8ee6a6}.them{color:#d0a78b}.time{color:#6b5d53;font-size:11px}</style></head><body><div class="header"><h2>${isGroup ? '👥 ' : '💬 '}WhatsApp ${isGroup ? 'Group' : 'Conversation'}${groupName ? `: ${groupName}` : `: ${contactName}`}</h2><p class="sub">${msgCount} message${msgCount !== 1 ? 's' : ''}</p></div><div class="chatbox">${convLines}</div></body></html>`;
+      fileType = 'html';
+    } else if (toolName === 'whatsapp_action' && result?.formattedChatList) {
+      // Render WhatsApp chat list
+      const formatted = escapeHtml(result.formattedChatList).split('\n').map(l => escapeHtml(l)).join('<br>');
+      formattedContent = `<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>WhatsApp Chats</title><style>body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:#0d0a08;color:#f0e6df;padding:20px}h2{margin:0 0 12px;font-size:18px;color:#d0a78b}.chatlist{background:#17110e;border:1px solid rgba(208,167,139,.12);border-radius:14px;padding:16px;font-family:"SF Mono",Monaco,"Cascadia Code",monospace;font-size:13px;line-height:1.7;white-space:pre-wrap}</style></head><body><h2>📱 Recent WhatsApp Chats</h2><div class="chatlist">${formatted}</div></body></html>`;
+      fileType = 'html';
     } else {
       formattedContent = JSON.stringify(result, null, 2);
       fileType = 'json';
@@ -1506,6 +1524,7 @@ export function BeatriceAgent({
       console.warn("Google token missing. Google services will be disabled until you re-authenticate.");
     }
 
+    manuallyDisconnectedRef.current = false;
     sessionStartingRef.current = true;
     setConnecting(true);
 
@@ -2235,13 +2254,13 @@ ${PERSONA_REINFORCEMENT}
                 },
                 {
                   name: "whatsapp_action",
-                   description: "Execute real WhatsApp operations via the WhatsApp backend (whatsapp.eburon.ai). Call this when the user asks you to read their chats, send a message, find a contact, or do anything on WhatsApp. The user asking IS permission — execute immediately. Only actions the user has enabled in their permission toggles will work.",
+                   description: "Execute real WhatsApp operations via the WhatsApp backend (whatsapp.eburon.ai). Call this when the user asks you to read their chats, send a message, find a contact, or do anything on WhatsApp. The user asking IS permission — execute immediately. Only actions the user has enabled in their permission toggles will work. IMPORTANT CONVERSATION STRUCTURE: getMessageHistory and readGroupChat now return a 'formattedConversation' field — a labeled, timestamped transcript where 'You (Boss)' = the user's own messages and the contact/participant name = the other person's messages. Always read the formattedConversation field to understand who said what. readChats returns a 'formattedChatList' field for a clear overview of recent chats.",
                   parameters: {
                     type: Type.OBJECT,
                     properties: {
-                      action: { type: Type.STRING, description: "The WhatsApp action: sendMessage, readChats, getContacts, addContact, getGroups, sendGroupMessage, readGroupChat, getMessageHistory. IMPORTANT: For getContacts, 'getContacts' returns contacts with TWO name fields for each person: 'name' is what the user saved the contact as in their phonebook, and 'notify' is the contact's own public WhatsApp profile name (what they chose for themselves). Always show BOTH names when listing contacts. For readChats and getMessageHistory: messages include a 'fromMe' field — true means the user sent it, false means the other person sent it." },
+                       action: { type: Type.STRING, description: "The WhatsApp action: sendMessage, readChats, getContacts, addContact, getGroups, sendGroupMessage, readGroupChat, getMessageHistory. IMPORTANT: For getContacts, 'getContacts' returns contacts with TWO name fields for each person: 'name' is what the user saved the contact as in their phonebook, and 'notify' is the contact's own public WhatsApp profile name (what they chose for themselves). Always show BOTH names when listing contacts. For getMessageHistory and readGroupChat: use the 'formattedConversation' field — it's a labeled, timestamped conversation transcript where 'You (Boss)' means the user sent it, and the contact/participant name means the other person sent it. For readChats: use the 'formattedChatList' field for a clear overview." },
                       to: { type: Type.STRING, description: "Recipient phone number or JID (for sendMessage, addContact, getMessageHistory)" },
-                      text: { type: Type.STRING, description: "Message text (for sendMessage, sendGroupMessage). IMPORTANT — Before sending, you MUST first call getMessageHistory to read the user's WhatsApp History (their real WhatsApp conversations from the WhatsApp server — NOT the BeatriceAppConversations History). Look for messages with fromMe:true — those are the user's own outgoing WhatsApp messages. Analyze their real WhatsApp style: tone, abbreviations, emoji, punctuation, caps, language mixing, length, and how they talk to that person. Then write in THAT exact style. NEVER write in your own voice — become the user's WhatsApp voice." },
+                       text: { type: Type.STRING, description: "Message text (for sendMessage, sendGroupMessage). IMPORTANT — Before sending, you MUST first call getMessageHistory to read the user's WhatsApp History (their real WhatsApp conversations from the WhatsApp server — NOT the BeatriceAppConversations History). Use the 'formattedConversation' field to clearly see each message labeled as 'You (Boss):' (the user's own outgoing messages) or 'ContactName:' (the other person's replies). Analyze their real WhatsApp style from the body text: tone, abbreviations, emoji, punctuation, caps, language mixing, length, and how they talk to that person. Then write in THAT exact style. NEVER write in your own voice — become the user's WhatsApp voice." },
                       name: { type: Type.STRING, description: "Contact/group name (for addContact, getMessageHistory). For addContact: Baileys/WhatsApp Web does NOT support adding contacts — it will return an error. Tell the user to save the contact on their phone instead." },
                       number: { type: Type.STRING, description: "Contact phone number (for addContact)" },
                       chatId: { type: Type.STRING, description: "Chat JID or phone number (for getMessageHistory, readGroupChat)" },
@@ -3398,6 +3417,12 @@ outputAudioTranscription: {},
 
           onclose: (e: any) => {
             console.log("Live session closed:", e?.reason || e);
+            // Don't reconnect if the user manually stopped the session
+            if (manuallyDisconnectedRef.current) {
+              manuallyDisconnectedRef.current = false;
+              stopSession();
+              return;
+            }
             stopSession();
             // Auto-reconnect with backoff for unexpected disconnects
             if (reconnectAttemptsRef.current < maxReconnectAttempts) {
@@ -3470,6 +3495,12 @@ outputAudioTranscription: {},
       sessionStartingRef.current = false;
       stopSession();
     }
+  };
+
+  // User-initiated stop — sets a flag so onclose won't auto-reconnect
+  const handleUserStop = () => {
+    manuallyDisconnectedRef.current = true;
+    stopSession();
   };
 
   const stopSession = () => {
@@ -3633,7 +3664,7 @@ outputAudioTranscription: {},
             />
 
             <motion.button
-              onClick={isActive ? stopSession : startSession}
+              onClick={isActive ? handleUserStop : startSession}
               disabled={connecting}
               animate={{
                 scale: isActive ? 1 + breathLevel * 0.15 : 1,
@@ -3695,7 +3726,7 @@ outputAudioTranscription: {},
           </button>
 
           <button
-            onClick={isActive ? stopSession : startSession}
+            onClick={isActive ? handleUserStop : startSession}
             disabled={connecting}
             aria-label={isActive ? "Stop Voice Assistant" : "Start Voice Assistant"}
             title={isActive ? "Stop Voice Assistant" : "Start Voice Assistant"}

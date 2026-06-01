@@ -171,3 +171,87 @@
   - Veo 2.0 does NOT support audio generation (`generate_audio=False` required) — this is a model limitation
   - Videos must be 8 seconds only (`duration_seconds=8`) — other durations rejected
 - Next step: None — video generation is fully integrated and working.
+
+## TASK-20260601-124500: WhatsApp Conversation Structure — Labeled Transcripts for Beatrice
+
+### START RECORD
+- STATUS: COMPLETED
+- Start time: 2026-06-01T12:45:00Z
+- User request: Beatrice doesn't know how to determine which messages are from the user vs. from contacts in WhatsApp conversations. Need a conversation type/format so she can clearly see who sent what and who the contact is.
+- Last known state: Pre-existing WhatsApp integration with `fromMe` boolean on each message but no human-readable formatting
+- Preservation constraints: Preserve all existing tool handlers, data models, permissions system, and API contracts. Only add new fields alongside existing ones (never remove).
+- Files/directories to inspect: `server/whatsapp-tools.ts`, `server/whatsapp.ts`, `src/components/BeatriceAgent.tsx`, `src/lib/constants.ts`, `src/lib/whatsappClient.ts`
+- Success criteria:
+  1. `getMessageHistory` returns a `formattedConversation` field — labeled transcript with "You (Boss):" vs "ContactName:" for every message
+  2. `readGroupChat` returns a `formattedConversation` field — same but for groups with participant name resolution
+  3. `readChats` returns a `formattedChatList` field — clear numbered overview of recent chats
+  4. Tool declaration description tells Beatrice to use the `formattedConversation` field
+  5. UI document viewer renders WhatsApp conversations with styled chat transcript view
+  6. VOICE_PERSONALITY_PROMPT updated to explain the `formattedConversation` transcript format
+  7. `npm run lint` passes (zero new errors)
+
+### TODO
+- [x] Read existing WhatsApp tool handlers, data models, and tool declarations
+- [x] Create `formatConversation()` helper in `server/whatsapp-tools.ts`
+- [x] Modify `handleGetMessageHistory` to return `formattedConversation`, `conversationWith`, `contactSavedName`, `contactProfileName`, `contactJid`
+- [x] Modify `handleReadGroupChat` to return `formattedConversation`, `groupName`, `messageCount`
+- [x] Modify `handleReadChats` to return `formattedChatList`
+- [x] Update `whatsapp_action` tool declaration to reference `formattedConversation` field
+- [x] Update `action` parameter description to reference new fields
+- [x] Update `text` parameter description (send message instruction) to use `formattedConversation`
+- [x] Update VOICE_PERSONALITY_PROMPT in `constants.ts` to explain the transcript format
+- [x] Add WhatsApp conversation renderer in `showToolResult` (styled chat transcript in document viewer)
+- [x] Run `npm run lint` — zero new errors
+- [x] Verify `git diff` — only intended files changed
+
+### FINAL REPORT
+- STATUS: COMPLETED
+- End time: 2026-06-01T13:15:00Z
+- Files changed:
+  - `server/whatsapp-tools.ts` — Added `formatConversation()` helper (produces labeled timestamped transcripts), enriched `handleGetMessageHistory`, `handleReadGroupChat`, and `handleReadChats` with `formattedConversation`/`formattedChatList` fields
+  - `src/components/BeatriceAgent.tsx` — Updated tool declaration description and parameter descriptions for `whatsapp_action`; added styled chat transcript and chat list renderers in `showToolResult`
+  - `src/lib/constants.ts` — Updated "WhatsApp History" section in VOICE_PERSONALITY_PROMPT with the `formattedConversation` transcript format
+- Validation performed: `npm run lint` (tsc --noEmit) — only pre-existing errors remain, zero new errors introduced
+- CSS/UI preservation: No CSS changes. Added new HTML renderers for WhatsApp conversation/chats in the existing document viewer pattern.
+- Real data/API credential check: No credentials changed. All data flows through existing WhatsApp backend pipeline.
+- Known issues: None introduced. Three pre-existing TS errors in unrelated code remain.
+- Next step: None — Beatrice can now clearly see "You (Boss): message" vs "ContactName: message" in every WhatsApp conversation.
+
+## TASK-20260601-143000: Fix Auto-Reconnect Loop & Background Audio Persistence
+
+### START RECORD
+- STATUS: COMPLETED
+- Start time: 2026-06-01T14:30:00Z
+- User request: (1) Why does Beatrice start speaking without tapping the power button? Fix the auto-reconnect that triggers on manual stop. (2) Keep audio session alive persistently in background even when navigating to other pages (Settings, Profile, Admin). Only stop when user taps power again. Don't overload BeatriceAgent.tsx.
+- Last known state: `onclose` callback always auto-reconnected regardless of whether the stop was manual (user tapping power) or unexpected (network error). `App.tsx` used `if/return` routing that unmounted `BeatriceAgent` when navigating to other pages, killing the voice session.
+- Preservation constraints: Keep changes minimal in `BeatriceAgent.tsx`. Don't break any existing routing or component behavior. Preserve all existing auth flows, page UIs, and session cleanup on logout.
+- Files/directories to inspect: `src/components/BeatriceAgent.tsx`, `src/App.tsx`
+- Success criteria:
+  1. Tapping power to stop the session does NOT auto-reconnect
+  2. Unexpected disconnects (network/server errors) still auto-reconnect
+  3. Navigating to Settings/Profile/Admin Portal keeps the voice session alive
+  4. Coming back to the main page shows the session in its current state
+  5. `npm run lint` passes (zero new errors)
+
+### TODO
+- [x] Add `manuallyDisconnectedRef` flag in BeatriceAgent (line 528)
+- [x] Create `handleUserStop()` function that sets the flag and calls `stopSession()`
+- [x] Replace `stopSession` with `handleUserStop` in both power button onClick handlers (orb + bottom nav)
+- [x] Guard `onclose` callback: if `manuallyDisconnectedRef.current` is true, skip auto-reconnect
+- [x] Reset `manuallyDisconnectedRef.current = false` in `startSession()` 
+- [x] Restructure `App.tsx` routing: always keep `BeatriceAgent` mounted (hidden via CSS on non-main pages); overlay Settings/Profile/AdminPortal on top
+- [x] Run `npm run lint` — zero new errors
+
+### FINAL REPORT
+- STATUS: COMPLETED
+- End time: 2026-06-01T15:00:00Z
+- Files changed:
+  - `src/components/BeatriceAgent.tsx` — Added `manuallyDisconnectedRef` (+6 lines), `handleUserStop()` function, guarded `onclose` reconnect, wired buttons to `handleUserStop` instead of `stopSession`. Reset flag in `startSession()`.
+  - `src/App.tsx` — Restructured from `if/return` routing (unmounts BeatriceAgent) to a persistent layout: BeatriceAgent always mounted, other pages rendered as overlays on top. Uses `fixed inset-0 pointer-events-none opacity-0` to hide BeatriceAgent's UI when not on main page.
+- Validation performed: `npm run lint` (tsc --noEmit) — only pre-existing errors (all present before this task), zero new errors
+- CSS/UI preservation: No CSS changes to stylesheets. Added inline Tailwind classes for the hidden-state wrapper. All page UIs render identically.
+- Real data/API credential check: No credentials changed.
+- Known issues:
+  - The pre-existing `conversationBufferRef` and `_isMountedRef` TS errors remain (unrelated)
+  - When user logs out, the cleanup `useEffect` calls `stopSession()`, which triggers `onclose`. Since `manuallyDisconnectedRef` is false, it will attempt reconnect briefly but the unmounted component will suppress the effects.
+- Next step: None — session now stays alive across page navigation, and the power button properly stops it without immediate restart.

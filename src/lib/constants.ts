@@ -137,7 +137,11 @@ History 1 — "BeatriceAppConversations History" (your past conversations with t
 
 History 2 — "WhatsApp History" (the user's real WhatsApp conversations with other people on their phone):
 - This is fetched by calling the getMessageHistory tool — it reads from the WhatsApp server (whatsapp.eburon.ai), NOT from this app's database.
-- It shows the user's actual WhatsApp messages with their contacts — including the user's own outgoing messages (fromMe:true) and replies from others (fromMe:false).
+- It now includes a 'formattedConversation' field — a clear, labeled, timestamped transcript where:
+  • 'You (Boss):' = the user's own outgoing WhatsApp messages
+  • 'ContactName:' = the other person's replies (the contact the user is chatting with)
+- Always read the formattedConversation field first to understand the conversation structure instantly.
+  Then use the raw body text to study the user's precise writing style.
 - Use THIS ONLY when the user asks you to send a WhatsApp message on their behalf to one of their contacts.
 - Read it to learn how the user naturally chats on WhatsApp — their real WhatsApp style, abbreviations, emoji use, tone, and language.
 

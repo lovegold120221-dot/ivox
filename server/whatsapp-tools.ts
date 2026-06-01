@@ -1,4 +1,4 @@
-import type { WhatsAppManager } from './whatsapp';
+import type { WhatsAppManager, WaRecentMessage } from './whatsapp';
 import { toWhatsAppJid } from './whatsapp';
 
 const ALL_PERMISSIONS = [
@@ -31,6 +31,59 @@ function requireText(value: unknown, label: string): string | null {
   const text = String(value || '').trim();
   if (!text) return `${label} required`;
   return null;
+}
+
+/**
+ * Format an array of WhatsApp messages into a clear, labeled conversation transcript
+ * that the AI can use to understand who said what.
+ *
+ * @param messages - Raw WaRecentMessage array (from newest to oldest, as stored)
+ * @param partnerName - Display name of the other person in a 1:1 chat
+ * @param options - Optional settings for groups and participant resolution
+ * @returns A human-readable, labeled conversation string
+ */
+function formatConversation(
+  messages: WaRecentMessage[],
+  partnerName: string,
+  options: {
+    isGroup?: boolean;
+    groupName?: string;
+    participantResolver?: (jid: string) => string;
+  } = {},
+): string {
+  if (!messages || messages.length === 0) {
+    const label = options.isGroup ? (options.groupName || 'Group') : partnerName;
+    return `📱 WhatsApp ${options.isGroup ? 'Group' : 'Conversation'} with ${label}\n(No messages)`;
+  }
+
+  const header = options.isGroup
+    ? `📱 WhatsApp Group: ${options.groupName || partnerName}`
+    : `📱 WhatsApp Conversation with ${partnerName}`;
+
+  const separator = '━'.repeat(48);
+
+  // Sort chronologically (oldest first) for a natural reading order
+  const sorted = [...messages].sort((a, b) => a.timestamp - b.timestamp);
+
+  const lines = sorted.map((msg) => {
+    const date = new Date(msg.timestamp);
+    const timeStr = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    const body = msg.body || (msg.isMedia ? '[Media message]' : '');
+
+    let sender: string;
+    if (msg.fromMe) {
+      sender = 'You (Boss)';
+    } else if (options.isGroup && options.participantResolver) {
+      sender = options.participantResolver(msg.from) || partnerName;
+    } else {
+      sender = partnerName;
+    }
+
+    return `[${timeStr}] ${sender}: ${body}`;
+  });
+
+  const count = messages.length;
+  return `${header} (${count} message${count !== 1 ? 's' : ''})\n${separator}\n${lines.join('\n')}\n${separator}`;
 }
 
 export async function handleSendMessage(
@@ -70,11 +123,24 @@ export async function handleReadChats(
   userId: string,
   permissions: Record<string, boolean> | undefined,
   limit: number = 20,
-): Promise<{ ok: true; chats: any[] } | { ok: false; error: string }> {
+): Promise<{ ok: true; chats: any[]; formattedChatList: string } | { ok: false; error: string }> {
   const denied = requirePerm(permissions, 'read_chats');
   if (denied) return { ok: false, error: denied };
   if (!wa.isPaired(userId)) return { ok: false, error: 'WhatsApp not paired' };
-  return { ok: true, chats: wa.getChats(userId, cleanLimit(limit)) };
+
+  const chats = wa.getChats(userId, cleanLimit(limit));
+
+  // Build a compact, labeled chat list
+  const lines = chats.map((c: any, i: number) => {
+    const badge = c.isGroup ? '👥' : '💬';
+    const unread = c.unreadCount > 0 ? ` (${c.unreadCount} unread)` : '';
+    const preview = c.lastMessage ? `: "${c.lastMessage.slice(0, 80)}"` : '';
+    return `${i + 1}. ${badge} ${c.name}${unread}${preview}`;
+  });
+
+  const formattedChatList = `📱 Recent WhatsApp Chats (${chats.length})\n${'━'.repeat(40)}\n${lines.join('\n')}\n${'━'.repeat(40)}`;
+
+  return { ok: true, chats, formattedChatList };
 }
 
 export async function handleGetContacts(
@@ -166,13 +232,47 @@ export async function handleReadGroupChat(
   permissions: Record<string, boolean> | undefined,
   groupId: string,
   limit: number = 20,
-): Promise<{ ok: true; messages: any[] } | { ok: false; error: string }> {
+): Promise<{
+  ok: true;
+  messages: any[];
+  formattedConversation: string;
+  groupName: string;
+  messageCount: number;
+} | { ok: false; error: string }> {
   const denied = requirePerm(permissions, 'read_group_chats');
   if (denied) return { ok: false, error: denied };
   if (!wa.isPaired(userId)) return { ok: false, error: 'WhatsApp not paired' };
   const groupError = requireText(groupId, 'Group ID');
   if (groupError) return { ok: false, error: groupError };
-  return { ok: true, messages: wa.getMessageHistory(userId, toWhatsAppJid(groupId, true), cleanLimit(limit)) };
+
+  const resolvedJid = toWhatsAppJid(groupId, true);
+  const rawMessages: WaRecentMessage[] = wa.getMessageHistory(userId, resolvedJid, cleanLimit(limit));
+
+  // Resolve group name from stored chats, or fall back to JID
+  const chats = wa.getChats(userId, 50);
+  const groupChat = chats.find((c: any) => c.id === resolvedJid);
+  const groupDisplayName = groupChat?.name || resolvedJid.split('@')[0] || 'Unknown Group';
+
+  // Build a participant name resolver from the contacts list
+  const contacts = wa.getContacts(userId, 500);
+  const participantResolver = (jid: string): string => {
+    const contact = contacts.find((c: any) => c.id === jid);
+    return contact?.name || contact?.notify || jid.split('@')[0] || 'Unknown';
+  };
+
+  const formattedConversation = formatConversation(rawMessages, groupDisplayName, {
+    isGroup: true,
+    groupName: groupDisplayName,
+    participantResolver,
+  });
+
+  return {
+    ok: true,
+    messages: rawMessages,
+    formattedConversation,
+    groupName: groupDisplayName,
+    messageCount: rawMessages.length,
+  };
 }
 
 export async function handleGetMessageHistory(
@@ -181,11 +281,41 @@ export async function handleGetMessageHistory(
   permissions: Record<string, boolean> | undefined,
   chatId: string,
   limit: number = 20,
-): Promise<{ ok: true; messages: any[] } | { ok: false; error: string }> {
+): Promise<{
+  ok: true;
+  messages: any[];
+  formattedConversation: string;
+  conversationWith: string;
+  messageCount: number;
+  contactSavedName?: string;
+  contactProfileName?: string;
+  contactJid: string;
+} | { ok: false; error: string }> {
   const denied = requirePerm(permissions, 'view_message_history');
   if (denied) return { ok: false, error: denied };
   if (!wa.isPaired(userId)) return { ok: false, error: 'WhatsApp not paired' };
   const chatError = requireText(chatId, 'Chat ID');
   const resolvedJid = typeof wa.resolveContactJid === 'function' ? wa.resolveContactJid(userId, chatId) : toWhatsAppJid(chatId);
-  return { ok: true, messages: wa.getMessageHistory(userId, resolvedJid, cleanLimit(limit)) };
+
+  const rawMessages: WaRecentMessage[] = wa.getMessageHistory(userId, resolvedJid, cleanLimit(limit));
+
+  // Resolve the contact's display name from the phonebook
+  const contacts = wa.getContacts(userId, 500);
+  const contact = contacts.find((c: any) => c.id === resolvedJid);
+  const contactName = contact?.name || contact?.notify || resolvedJid.split('@')[0] || 'Unknown';
+  const savedName = contact?.name || undefined;
+  const profileName = contact?.notify || undefined;
+
+  const formattedConversation = formatConversation(rawMessages, contactName, { isGroup: false });
+
+  return {
+    ok: true,
+    messages: rawMessages,
+    formattedConversation,
+    conversationWith: contactName,
+    messageCount: rawMessages.length,
+    contactSavedName: savedName,
+    contactProfileName: profileName,
+    contactJid: resolvedJid,
+  };
 }
