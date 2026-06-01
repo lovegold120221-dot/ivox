@@ -668,7 +668,7 @@ export function BeatriceAgent({
       session.sendRealtimeInput({
         audio: {
           data: base64Data,
-          mimeType: 'audio/pcm;rate=22000'
+          mimeType: 'audio/pcm;rate=16000'
         }
       });
       return;

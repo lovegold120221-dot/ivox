@@ -425,7 +425,7 @@ export function ProfilePage({
       // Save to Supabase
       let sbError = null;
       try {
-        const { error } = await supabase.from('user_settings').upsert({
+        const profilePayload = {
           user_id: user.uid,
           persona_name: personaName,
           custom_prompt: customPrompt,
@@ -435,8 +435,14 @@ export function ProfilePage({
           language: authLanguage,
           avatar_url: avatarUrl,
           updated_at: new Date().toISOString(),
-        });
+        };
+        const { error } = await supabase.from('user_settings').upsert(profilePayload);
         sbError = error;
+        if (error?.code === 'PGRST204' && error.message?.includes('avatar_url')) {
+          const { avatar_url, ...profilePayloadWithoutAvatar } = profilePayload;
+          const fallback = await supabase.from('user_settings').upsert(profilePayloadWithoutAvatar);
+          sbError = fallback.error;
+        }
       } catch (e) {
         console.warn('Supabase upsert failed, possibly missing columns. Falling back to local storage...', e);
       }
