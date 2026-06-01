@@ -433,6 +433,8 @@ export function BeatriceAgent({
   const [tasks, setTasks] = useState<ActionTask[]>([]);
   const [historyContext, setHistoryContext] = useState<string>("");
   const historyContextRef = useRef<string>("");
+  const conversationBufferRef = useRef<string[]>([]);
+  const _isMountedRef = useRef(true);
   const [longTermMemoryContext, setLongTermMemoryContext] = useState<string>("");
   const longTermMemoryContextRef = useRef<string>("");
   const [userTranscript, setUserTranscript] = useState<string>('');
@@ -1392,7 +1394,9 @@ export function BeatriceAgent({
   }, [messages]);
 
   useEffect(() => {
+    _isMountedRef.current = true;
     return () => {
+      _isMountedRef.current = false;
       if (waPollRef.current) {
         clearInterval(waPollRef.current);
         waPollRef.current = null;
