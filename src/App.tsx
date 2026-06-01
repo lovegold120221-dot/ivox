@@ -86,6 +86,7 @@ export default function App() {
 
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, async (u) => {
+      console.log('[App] onAuthStateChanged fired, user:', u?.uid);
       setUser(u);
 
       if (u) {

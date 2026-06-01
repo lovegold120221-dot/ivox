@@ -11,3 +11,4 @@ client.json
 .env
 
 .baileys_auth/
+.gstack/
