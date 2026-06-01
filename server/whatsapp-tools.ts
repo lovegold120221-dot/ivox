@@ -50,7 +50,7 @@ export async function handleSendMessage(
 
   try {
     const sock = wa.getClient(userId);
-    const chatId = wa.resolveContactJid(userId, to);
+    const chatId = typeof wa.resolveContactJid === 'function' ? wa.resolveContactJid(userId, to) : toWhatsAppJid(to);
     if (!sock) {
       const cloudSent = await wa.sendCloudTextMessage(userId, to, text);
       if (cloudSent) {
@@ -186,6 +186,6 @@ export async function handleGetMessageHistory(
   if (denied) return { ok: false, error: denied };
   if (!wa.isPaired(userId)) return { ok: false, error: 'WhatsApp not paired' };
   const chatError = requireText(chatId, 'Chat ID');
-  const resolvedJid = wa.resolveContactJid(userId, chatId);
+  const resolvedJid = typeof wa.resolveContactJid === 'function' ? wa.resolveContactJid(userId, chatId) : toWhatsAppJid(chatId);
   return { ok: true, messages: wa.getMessageHistory(userId, resolvedJid, cleanLimit(limit)) };
 }
